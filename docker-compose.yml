@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookbase_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: bookbase
+      POSTGRES_USER: bookbase_user
+      POSTGRES_PASSWORD: bookbase_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/schema_postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookbase_user -d bookbase"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+
