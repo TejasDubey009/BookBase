@@ -1,6 +1,7 @@
 import sys
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlencode
 
 # Set VERCEL env var so config.py knows to use writable /tmp for SQLite
 os.environ["VERCEL"] = "1"
@@ -14,26 +15,36 @@ if str(backend_dir) not in sys.path:
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from app.main import app
-from fastapi import Request
+from app.main import app as fastapi_app
 
-@app.get("/api/debug-routes")
-@app.get("/debug-routes")
-def debug_routes(request: Request):
-    return {
-        "received_path": request.url.path,
-        "scope_path": request.scope.get("path"),
-        "root_path": request.scope.get("root_path"),
-        "routes": [getattr(r, "path", str(r)) for r in request.app.routes]
-    }
+class VercelPathMiddleware:
+    """
+    ASGI middleware that dynamically restores original request path and query string
+    from Vercel's rewrite mechanism.
+    """
+    def __init__(self, app):
+        self.app = app
 
-@app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-def catch_all(full_path: str, request: Request):
-    return {
-        "catch_all": True,
-        "full_path": full_path,
-        "path": request.url.path,
-        "query_params": dict(request.query_params),
-        "headers": dict(request.headers)
-    }
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            query_string = scope.get("query_string", b"").decode("utf-8")
+            params = parse_qs(query_string)
+            if "__path__" in params:
+                subpath = params["__path__"][0].lstrip("/")
+                if subpath in ("docs", "openapi.json", "redoc"):
+                    new_path = f"/{subpath}"
+                elif subpath.startswith("api/"):
+                    new_path = f"/{subpath}"
+                else:
+                    new_path = f"/api/{subpath}"
+                
+                scope["path"] = new_path
+                scope["raw_path"] = new_path.encode("utf-8")
+                
+                # Strip internal __path__ param so application gets clean query params
+                remaining = {k: v for k, v in params.items() if k != "__path__"}
+                scope["query_string"] = urlencode(remaining, doseq=True).encode("utf-8")
 
+        await self.app(scope, receive, send)
+
+app = VercelPathMiddleware(fastapi_app)
