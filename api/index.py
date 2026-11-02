@@ -33,6 +33,7 @@ def catch_all(full_path: str, request: Request):
         "catch_all": True,
         "full_path": full_path,
         "path": request.url.path,
+        "query_params": dict(request.query_params),
         "headers": dict(request.headers)
     }
 
