@@ -33,6 +33,6 @@ def catch_all(full_path: str, request: Request):
         "catch_all": True,
         "full_path": full_path,
         "path": request.url.path,
-        "root_path": request.scope.get("root_path")
+        "headers": dict(request.headers)
     }
 
