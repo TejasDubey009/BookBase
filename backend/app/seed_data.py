@@ -29,6 +29,24 @@ def seed_database(conn: sqlite3.Connection, force_reset: bool = False):
         cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('users', 'books', 'book_copies', 'circulation_loans', 'waitlist_reservations', 'db_audit_logs');")
         conn.commit()
 
+    # Check if book_requests need sample seeding even if database was initialized earlier
+    cursor.execute("SELECT COUNT(*) FROM book_requests;")
+    if cursor.fetchone()[0] == 0:
+        now_sample_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        sample_requests = [
+            (4, None, "Clean Code: A Handbook of Agile Software Craftsmanship", "Robert C. Martin", "Core Computer Science", "Prescribed reference for clean architecture and software engineering lab.", "Pending", now_sample_iso, now_sample_iso),
+            (5, None, "Site Reliability Engineering: How Google Runs Production Systems", "Betsy Beyer, Chris Jones, Niall Richard Murphy", "Systems & Security", "Advanced reference for distributed systems and DevOps elective.", "Approved", now_sample_iso, now_sample_iso),
+            (2, 3, "Introduction to Algorithms (CLRS) - Extra Physical Copies", "Thomas H. Cormen", "Core Computer Science", "All copies currently on loan, request to procure 2 more copies for Semester 3 book bank.", "Procured", now_sample_iso, now_sample_iso)
+        ]
+        cursor.executemany(
+            """
+            INSERT INTO book_requests (user_id, book_id, title, author, category, notes, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            sample_requests
+        )
+        conn.commit()
+
     # Check if users already exist
     cursor.execute("SELECT COUNT(*) FROM users;")
     if cursor.fetchone()[0] > 0 and not force_reset:
@@ -39,20 +57,20 @@ def seed_database(conn: sqlite3.Connection, force_reset: bool = False):
 
     # 1. Seed Users (Librarian Staff + B.Tech CSBS Patrons)
     users_data = [
-        ("Admin", "admin@bookbase.in", hash_password("admin123"), "admin", 10, 0.0),
-        ("Tejas", "tejas@bookbase.in", hash_password("member123"), "member", 4, 0.0),
-        ("Akash", "akash@bookbase.in", hash_password("member123"), "member", 4, 0.0),
-        ("Sai Kartikeya", "saikartikeya@bookbase.in", hash_password("member123"), "member", 4, 0.0),
-        ("Biba", "biba@bookbase.in", hash_password("member123"), "member", 4, 0.0),
-        ("Jaidanya", "jaidanya@bookbase.in", hash_password("member123"), "member", 4, 0.0),
+        ("Admin", "ADMIN001", "admin@bookbase.in", hash_password("admin123"), "admin", 10, 0.0),
+        ("Tejas", "CSBS2022001", "tejas@bookbase.in", hash_password("member123"), "member", 4, 0.0),
+        ("Akash", "CSBS2022002", "akash@bookbase.in", hash_password("member123"), "member", 4, 0.0),
+        ("Sai Kartikeya", "CSBS2022003", "saikartikeya@bookbase.in", hash_password("member123"), "member", 4, 0.0),
+        ("Biba", "CSBS2022004", "biba@bookbase.in", hash_password("member123"), "member", 4, 0.0),
+        ("Jaidanya", "CSBS2022005", "jaidanya@bookbase.in", hash_password("member123"), "member", 4, 0.0),
     ]
 
     cursor.executemany(
         """
-        INSERT INTO users (full_name, email, password_hash, role, max_books_quota, outstanding_fines, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (full_name, enrollment_no, email, password_hash, role, max_books_quota, outstanding_fines, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        [(u[0], u[1], u[2], u[3], u[4], u[5], now_iso) for u in users_data]
+        [(u[0], u[1], u[2], u[3], u[4], u[5], u[6], now_iso) for u in users_data]
     )
     conn.commit()
 
@@ -584,7 +602,24 @@ def seed_database(conn: sqlite3.Connection, force_reset: bool = False):
     res_id_1 = cursor.lastrowid
     conn.commit()
 
-    # 6. Audit Logging
+    # 6. Seed Sample Student Book Requests
+    cursor.execute("SELECT COUNT(*) FROM book_requests;")
+    if cursor.fetchone()[0] == 0:
+        sample_requests = [
+            (4, None, "Clean Code: A Handbook of Agile Software Craftsmanship", "Robert C. Martin", "Core Computer Science", "Prescribed reference for clean architecture and software engineering lab.", "Pending", now_iso, now_iso),
+            (5, None, "Site Reliability Engineering: How Google Runs Production Systems", "Betsy Beyer, Chris Jones, Niall Richard Murphy", "Systems & Security", "Advanced reference for distributed systems and DevOps elective.", "Approved", now_iso, now_iso),
+            (2, 3, "Introduction to Algorithms (CLRS) - Extra Physical Copies", "Thomas H. Cormen", "Core Computer Science", "All copies currently on loan, request to procure 2 more copies for Semester 3 book bank.", "Procured", now_iso, now_iso)
+        ]
+        cursor.executemany(
+            """
+            INSERT INTO book_requests (user_id, book_id, title, author, category, notes, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            sample_requests
+        )
+        conn.commit()
+
+    # 7. Audit Logging
     log_audit(
         conn,
         "TX_CHECKOUT",

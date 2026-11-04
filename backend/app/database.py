@@ -59,11 +59,13 @@ def log_audit(
 def init_db_schema(conn: sqlite3.Connection):
     """
     Initializes the 3NF schema, tables, and partial indexes.
+    Includes automated migration for enrollment numbers and book requests.
     """
     cursor = conn.cursor()
     cursor.executescript("""
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        enrollment_no TEXT UNIQUE NOT NULL,
         full_name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
@@ -116,6 +118,19 @@ def init_db_schema(conn: sqlite3.Connection):
         fulfilled_at TIMESTAMP NULL
     );
 
+    CREATE TABLE IF NOT EXISTS book_requests (
+        request_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+        book_id INTEGER REFERENCES books(book_id) ON DELETE SET NULL,
+        title TEXT NOT NULL,
+        author TEXT,
+        category TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Procured', 'Rejected')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS db_audit_logs (
         log_id INTEGER PRIMARY KEY AUTOINCREMENT,
         operation_type TEXT NOT NULL,
@@ -147,6 +162,38 @@ def init_db_schema(conn: sqlite3.Connection):
     CREATE INDEX IF NOT EXISTS idx_active_loans_user 
         ON circulation_loans(user_id) 
         WHERE return_date IS NULL;
+
+    -- Index 6: Fast lookup for student requests
+    CREATE INDEX IF NOT EXISTS idx_book_requests_user 
+        ON book_requests(user_id, status);
     """)
+
+    # Backward-compatible column migration for users.enrollment_no
+    cursor.execute("PRAGMA table_info(users);")
+    user_cols = [c[1] for c in cursor.fetchall()]
+    if "enrollment_no" not in user_cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN enrollment_no TEXT;")
+        conn.commit()
+
+        # Populate pre-existing users
+        enrollments = {
+            "admin@bookbase.in": "ADMIN001",
+            "tejas@bookbase.in": "CSBS2022001",
+            "akash@bookbase.in": "CSBS2022002",
+            "saikartikeya@bookbase.in": "CSBS2022003",
+            "biba@bookbase.in": "CSBS2022004",
+            "jaidanya@bookbase.in": "CSBS2022005"
+        }
+        for email, en_no in enrollments.items():
+            cursor.execute("UPDATE users SET enrollment_no = ? WHERE email = ?", (en_no, email))
+        
+        # Populate any remaining with a fallback
+        cursor.execute("SELECT user_id FROM users WHERE enrollment_no IS NULL OR enrollment_no = ''")
+        for row in cursor.fetchall():
+            cursor.execute("UPDATE users SET enrollment_no = ? WHERE user_id = ?", (f"STU{row[0]:05d}", row[0]))
+        conn.commit()
+
+    # Ensure unique index exists on enrollment_no
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_enrollment_no ON users(enrollment_no);")
     conn.commit()
 

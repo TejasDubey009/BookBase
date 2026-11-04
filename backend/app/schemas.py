@@ -5,12 +5,21 @@ from pydantic import BaseModel, Field
 # Auth Schemas
 # -----------------------------------------------------------------------------
 class LoginRequest(BaseModel):
-    email: str
+    identifier: Optional[str] = None # can be enrollment number or email
+    email: Optional[str] = None
+    enrollment_no: Optional[str] = None
     password: str
     role: Optional[str] = "member"
 
+class RegisterRequest(BaseModel):
+    full_name: str
+    enrollment_no: str
+    email: str
+    password: str
+
 class UserOut(BaseModel):
     user_id: int
+    enrollment_no: str
     full_name: str
     email: str
     role: str
@@ -24,6 +33,7 @@ class LoginResponse(BaseModel):
 
 class DemoUserOut(BaseModel):
     user_id: int
+    enrollment_no: str
     full_name: str
     email: str
     role: str
@@ -149,6 +159,7 @@ class LoanOut(BaseModel):
     user_id: int
     user_name: str
     user_email: str
+    user_enrollment_no: Optional[str] = None
     book_id: int
     title: str
     author: str
@@ -164,6 +175,72 @@ class LoanOut(BaseModel):
     issued_via: str
     is_overdue: bool
     days_remaining: int
+
+# -----------------------------------------------------------------------------
+# Book Requests Schemas
+# -----------------------------------------------------------------------------
+class BookRequestCreate(BaseModel):
+    user_id: int
+    title: str
+    author: Optional[str] = None
+    category: Optional[str] = "Core Computer Science"
+    notes: Optional[str] = None
+    book_id: Optional[int] = None
+
+class BookRequestUpdate(BaseModel):
+    status: str # 'Pending', 'Approved', 'Procured', 'Rejected'
+
+class BookRequestOut(BaseModel):
+    request_id: int
+    user_id: int
+    user_name: str
+    user_enrollment_no: str
+    user_email: str
+    book_id: Optional[int] = None
+    title: str
+    author: Optional[str] = None
+    category: Optional[str] = None
+    notes: Optional[str] = None
+    status: str
+    created_at: str
+    updated_at: str
+
+class SettleFineRequest(BaseModel):
+    user_id: int
+    amount_settled: Optional[float] = None
+
+# -----------------------------------------------------------------------------
+# Grouped Book & Borrowers Matrix (for Admin Grouped Table)
+# -----------------------------------------------------------------------------
+class BookBorrowerOut(BaseModel):
+    loan_id: int
+    copy_id: int
+    barcode: str
+    shelf_location: str
+    user_id: int
+    student_name: str
+    student_enrollment_no: str
+    student_email: str
+    issue_date: str
+    due_date: str
+    return_date: Optional[str] = None
+    status: str # 'Active', 'Overdue', 'Returned'
+    fine_assessed: float
+    days_remaining: int
+
+class GroupedBookBorrowersOut(BaseModel):
+    book_id: int
+    isbn: str
+    title: str
+    author: str
+    category: str
+    published_year: int
+    cover_url: str
+    card_tint: str
+    total_copies: int
+    available_copies: int
+    active_loans_count: int
+    borrowers: List[BookBorrowerOut]
 
 # -----------------------------------------------------------------------------
 # Dashboard & Telemetry Schemas
@@ -185,6 +262,7 @@ class UserDashboardOut(BaseModel):
     active_loans: List[LoanOut]
     loan_history: List[LoanOut]
     active_waitlists: List[UserWaitlistCard]
+    book_requests: List[BookRequestOut] = []
 
 class AdminKPIs(BaseModel):
     total_titles: int
@@ -193,11 +271,14 @@ class AdminKPIs(BaseModel):
     active_loans: int
     waitlist_queue_depth: int
     total_fines: float
+    pending_requests_count: int = 0
 
 class AdminOverviewOut(BaseModel):
     kpis: AdminKPIs
     active_loans: List[LoanOut]
     waitlist_queue: List[WaitlistEntryOut]
+    book_requests: List[BookRequestOut] = []
+    grouped_books: Optional[List[GroupedBookBorrowersOut]] = None
     recent_audit_logs: List[dict]
 
 class AuditLogOut(BaseModel):

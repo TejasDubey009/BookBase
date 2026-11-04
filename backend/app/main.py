@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import get_raw_connection
 from app.seed_data import seed_database
-from app.routers import auth, books, circulation, users, admin, telemetry
+from app.routers import auth, books, circulation, users, admin, telemetry, requests
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -38,6 +38,7 @@ for prefix in ["/api/v1", "/v1"]:
     app.include_router(circulation.router, prefix=prefix)
     app.include_router(users.router, prefix=prefix)
     app.include_router(admin.router, prefix=prefix)
+    app.include_router(requests.router, prefix=prefix)
     app.include_router(telemetry.router, prefix=prefix)
 
 @app.get("/api/v1/health")

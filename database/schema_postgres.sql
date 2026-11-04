@@ -21,6 +21,7 @@ DROP FUNCTION IF EXISTS fn_check_user_quota();
 DROP PROCEDURE IF EXISTS sp_checkout_book(INTEGER, INTEGER, INTEGER, OUT INTEGER, OUT INTEGER, OUT VARCHAR);
 DROP PROCEDURE IF EXISTS sp_return_book_with_waitlist(INTEGER, OUT VARCHAR, OUT INTEGER, OUT INTEGER, OUT NUMERIC);
 DROP TABLE IF EXISTS db_audit_logs CASCADE;
+DROP TABLE IF EXISTS book_requests CASCADE;
 DROP TABLE IF EXISTS waitlist_reservations CASCADE;
 DROP TABLE IF EXISTS circulation_loans CASCADE;
 DROP TABLE IF EXISTS book_copies CASCADE;
@@ -33,6 +34,7 @@ DROP TABLE IF EXISTS users CASCADE;
 -- ----------------------------------------------------------------------------
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
+    enrollment_no VARCHAR(30) UNIQUE NOT NULL,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(120) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -104,7 +106,24 @@ CREATE TABLE waitlist_reservations (
 );
 
 -- ----------------------------------------------------------------------------
--- TABLE 6: db_audit_logs
+-- TABLE 6: book_requests
+-- Student book procurement and curriculum acquisition requests.
+-- ----------------------------------------------------------------------------
+CREATE TABLE book_requests (
+    request_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    book_id INTEGER REFERENCES books(book_id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(150),
+    category VARCHAR(80),
+    notes TEXT,
+    status VARCHAR(30) DEFAULT 'Pending' NOT NULL CHECK (status IN ('Pending', 'Approved', 'Procured', 'Rejected')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- ----------------------------------------------------------------------------
+-- TABLE 7: db_audit_logs
 -- Live DBMS Telemetry recording operations, locks, and triggers for academic demonstration.
 -- ----------------------------------------------------------------------------
 CREATE TABLE db_audit_logs (

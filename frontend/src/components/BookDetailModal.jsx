@@ -11,7 +11,10 @@ import {
   CheckCircle2, 
   AlertCircle,
   Zap,
-  Info
+  Info,
+  BookPlus,
+  Monitor,
+  Building
 } from 'lucide-react';
 import { api } from '../api';
 import BookCover from './BookCover';
@@ -19,11 +22,13 @@ import BookCover from './BookCover';
 export default function BookDetailModal({
   bookId,
   currentUser,
+  portal = 'kiosk', // 'kiosk' | 'student' | 'admin'
   onClose,
   onBorrow,
   onJoinWaitlist,
   onReturn,
   onCancelWaitlist,
+  onRequestBook,
   loadingActionId
 }) {
   const [book, setBook] = useState(null);
@@ -61,6 +66,11 @@ export default function BookDetailModal({
             <span className="text-xs font-mono text-slate-500">
               ISBN {book?.isbn}
             </span>
+            {portal === 'student' && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Remote View
+              </span>
+            )}
           </div>
 
           <button
@@ -158,31 +168,32 @@ export default function BookDetailModal({
                             <tr key={copy.copy_id} className="hover:bg-slate-50/80">
                               <td className="py-2.5 px-4 text-slate-500">#{copy.copy_id}</td>
                               <td className="py-2.5 px-4 font-semibold text-slate-800">{copy.barcode}</td>
-                              <td className="py-2.5 px-4 text-slate-600 font-sans">{copy.shelf_location}</td>
-                              <td className="py-2.5 px-4 text-slate-600 font-sans">{copy.condition}</td>
-                              <td className="py-2.5 px-4">
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-sans font-medium ${
-                                    isAvailable
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : isIssued
-                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                  }`}
-                                >
-                                  {copy.status}
+                              <td className="py-2.5 px-4 font-sans text-slate-600">{copy.shelf_location}</td>
+                              <td className="py-2.5 px-4 font-sans">
+                                <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
+                                  {copy.condition}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-4 font-sans text-slate-600">
-                                {copy.current_borrower_name ? (
-                                  <div className="flex flex-col">
-                                    <span className="font-medium text-slate-900">{copy.current_borrower_name}</span>
-                                    <span className="text-[10px] text-slate-500 font-mono">
-                                      Due: {copy.current_due_date?.slice(0, 10)}
-                                    </span>
-                                  </div>
+                              <td className="py-2.5 px-4">
+                                {isAvailable ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                    Available
+                                  </span>
                                 ) : (
-                                  <span className="text-slate-400 font-mono italic">On Shelf</span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-200">
+                                    <Clock className="w-3 h-3 text-amber-500" />
+                                    Issued
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 font-sans text-slate-600">
+                                {isIssued && copy.current_loan ? (
+                                  <span className="text-[11px]">
+                                    Due: {copy.current_loan.due_date?.slice(0, 10)}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 italic text-[11px]">Ready on shelf</span>
                                 )}
                               </td>
                             </tr>
@@ -190,7 +201,7 @@ export default function BookDetailModal({
                         })
                       ) : (
                         <tr>
-                          <td colSpan="6" className="py-4 text-center text-slate-400 font-sans">
+                          <td colSpan="6" className="py-4 text-center text-slate-400">
                             No physical copies registered for this title.
                           </td>
                         </tr>
@@ -200,69 +211,64 @@ export default function BookDetailModal({
                 </div>
               </div>
 
-              {/* SECTION 2: Live FIFO Waitlist Queue */}
-              <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-slate-50/50">
-                <div className="px-4 py-3 bg-white border-b border-slate-200/80 flex items-center justify-between">
+              {/* SECTION 2: Active Waitlist Lineup */}
+              <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+                <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-200/80 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-amber-600" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                      Circulation Reservation Queue
+                      Active Course Reservations Queue ({book.waitlist_entries?.length || 0})
                     </h3>
                   </div>
-                  <span className="text-[11px] text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60 font-mono">
-                    {book.waitlist_count} Patrons Waiting
+                  <span className="text-[11px] text-amber-800 font-mono">
+                    FIFO Dispatch
                   </span>
                 </div>
 
-                <div className="p-3 text-xs bg-amber-50/40 border-b border-amber-100 flex items-start gap-2 text-amber-900">
-                  <Zap className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">
-                    <strong>Automated Hold Allocation:</strong> When a currently checked-out copy is returned to the circulation desk, 
-                    the library system immediately allocates it to the next patron holding an active reservation.
-                  </span>
-                </div>
+                {book.waitlist_entries && book.waitlist_entries.length > 0 ? (
+                  <div className="p-4 space-y-2">
+                    {book.waitlist_entries.map((w) => {
+                      const isFirst = w.queue_position === 1;
+                      const isCurrentUser = currentUser?.user_id === w.user_id;
 
-                {book.waitlist_count > 0 ? (
-                  <div className="p-4">
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-slate-600 mb-2">Current Queue Lineup:</div>
-                      {/* Visual Queue representation */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {Array.from({ length: book.waitlist_count }).map((_, idx) => {
-                          const isYou = book.user_context?.waitlist_position === idx + 1;
-                          return (
-                            <div 
-                              key={idx}
-                              className={`p-3 rounded-xl border flex items-center justify-between ${
-                                isYou
-                                  ? 'bg-amber-50/90 border-amber-300 ring-2 ring-amber-400/20'
-                                  : 'bg-white border-slate-200/80'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-mono font-bold text-xs flex items-center justify-center">
-                                  #{idx + 1}
-                                </span>
-                                <div>
-                                  <div className="text-xs font-semibold text-slate-900">
-                                    {isYou ? 'You (Current Patron)' : `Waitlisted Patron #${idx + 1}`}
-                                  </div>
-                                  <div className="text-[10px] text-slate-500 font-mono">
-                                    {idx === 0 ? '⚡ Next returned copy assigns here' : 'In queue'}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {isYou && (
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
-                                  Your Spot
+                      return (
+                        <div 
+                          key={w.reservation_id}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                            isCurrentUser 
+                              ? 'bg-amber-50 border-amber-300 font-semibold' 
+                              : 'bg-slate-50 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold font-mono text-[11px] ${
+                              isFirst ? 'bg-amber-200 text-amber-900' : 'bg-slate-200 text-slate-700'
+                            }`}>
+                              #{w.queue_position}
+                            </span>
+                            <div>
+                              <span className="text-slate-900">{w.user_name}</span>
+                              {isCurrentUser && (
+                                <span className="ml-1.5 text-[10px] text-amber-800 font-bold bg-amber-100 px-1.5 py-0.2 rounded">
+                                  You
                                 </span>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 font-mono">
+                            {isFirst ? (
+                              <span className="text-amber-800 font-bold flex items-center gap-1">
+                                <Zap className="w-3 h-3 text-amber-600" />
+                                Next Available Copy
+                              </span>
+                            ) : (
+                              <span>Position #{w.queue_position}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-6 text-center text-xs text-slate-400 font-medium">
@@ -285,63 +291,138 @@ export default function BookDetailModal({
 
           {book && (
             <div className="flex items-center gap-2">
-              {book.user_context?.has_active_loan ? (
+              {/* ========================================================= */}
+              {/* PORTAL 1: KIOSK (Full Borrow & Return Actions)             */}
+              {/* ========================================================= */}
+              {portal === 'kiosk' && (
+                <>
+                  {book.user_context?.has_active_loan ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Holding Copy {book.user_context.active_copy_barcode}
+                      </span>
+                      <button
+                        disabled={loadingActionId === book.book_id}
+                        onClick={() => {
+                          onReturn(book.user_context.active_loan_id);
+                          onClose();
+                        }}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        Return Copy at Kiosk
+                      </button>
+                    </div>
+                  ) : book.user_context?.waitlist_position ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-amber-800 font-medium">
+                        Waitlist Queue: <strong>#{book.user_context.waitlist_position}</strong>
+                      </span>
+                      <button
+                        disabled={loadingActionId === book.book_id}
+                        onClick={() => {
+                          onCancelWaitlist(book.user_context.waitlist_reservation_id);
+                          onClose();
+                        }}
+                        className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-medium transition-colors"
+                      >
+                        Leave Waitlist
+                      </button>
+                    </div>
+                  ) : book.available_copies > 0 ? (
+                    <button
+                      disabled={loadingActionId === book.book_id}
+                      onClick={() => {
+                        onBorrow(book.book_id);
+                        onClose();
+                      }}
+                      className="px-5 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Borrow Copy at Kiosk
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={loadingActionId === book.book_id}
+                        onClick={() => {
+                          onJoinWaitlist(book.book_id);
+                          onClose();
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        Join Waitlist (#{book.waitlist_count + 1})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onRequestBook?.(book);
+                        }}
+                        className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1"
+                      >
+                        <BookPlus className="w-3.5 h-3.5" />
+                        <span>Request Extra Copies</span>
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ========================================================= */}
+              {/* PORTAL 3: STUDENT REMOTE PORTAL (Strictly NO Borrow/Return)*/}
+              {/* ========================================================= */}
+              {portal === 'student' && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    You are holding Copy {book.user_context.active_copy_barcode}
-                  </span>
-                  <button
-                    disabled={loadingActionId === book.book_id}
-                    onClick={() => {
-                      onReturn(book.user_context.active_loan_id);
-                      onClose();
-                    }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    Return Book Now
-                  </button>
+                  {book.user_context?.has_active_loan ? (
+                    <span className="text-xs text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200 font-medium flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Holding Copy {book.user_context.active_copy_barcode} • Return at Central Library Kiosk</span>
+                    </span>
+                  ) : book.available_copies > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl font-medium flex items-center gap-1.5">
+                        <Building className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Available on shelf • Visit Library Kiosk to borrow</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={loadingActionId === book.book_id}
+                        onClick={() => {
+                          onJoinWaitlist(book.book_id);
+                          onClose();
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        Join Waitlist (#{book.waitlist_count + 1})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onRequestBook?.(book);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold flex items-center gap-1.5"
+                      >
+                        <BookPlus className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Request Additional Copy</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : book.user_context?.waitlist_position ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-amber-800 font-medium">
-                    Queue Position: <strong>#{book.user_context.waitlist_position}</strong>
-                  </span>
-                  <button
-                    disabled={loadingActionId === book.book_id}
-                    onClick={() => {
-                      onCancelWaitlist(book.user_context.waitlist_reservation_id);
-                      onClose();
-                    }}
-                    className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-medium transition-colors"
-                  >
-                    Leave Waitlist
-                  </button>
-                </div>
-              ) : book.available_copies > 0 ? (
-                <button
-                  disabled={loadingActionId === book.book_id}
-                  onClick={() => {
-                    onBorrow(book.book_id);
-                    onClose();
-                  }}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  Borrow an Available Copy
-                </button>
-              ) : (
-                <button
-                  disabled={loadingActionId === book.book_id}
-                  onClick={() => {
-                    onJoinWaitlist(book.book_id);
-                    onClose();
-                  }}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  Join FIFO Waitlist (Queue #{book.waitlist_count + 1})
-                </button>
+              )}
+
+              {/* ========================================================= */}
+              {/* PORTAL 2: ADMIN PORTAL                                    */}
+              {/* ========================================================= */}
+              {portal === 'admin' && (
+                <span className="text-xs font-mono text-slate-500">
+                  Total {book.total_copies} Accessioned Copies ({book.available_copies} Available)
+                </span>
               )}
             </div>
           )}
@@ -350,4 +431,3 @@ export default function BookDetailModal({
     </div>
   );
 }
-

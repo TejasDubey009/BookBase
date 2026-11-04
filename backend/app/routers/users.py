@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 import sqlite3
 import datetime
 from app.database import get_db
-from app.schemas import UserDashboardOut, UserOut, LoanOut, UserWaitlistCard
+from app.schemas import UserDashboardOut, UserOut, LoanOut, UserWaitlistCard, BookRequestOut
 
 router = APIRouter(prefix="/users", tags=["Patron Dashboards"])
 
@@ -13,7 +13,7 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
     # 1. User info
     cursor.execute(
         """
-        SELECT user_id, full_name, email, role, max_books_quota, outstanding_fines
+        SELECT user_id, enrollment_no, full_name, email, role, max_books_quota, outstanding_fines
         FROM users
         WHERE user_id = ?
         """,
@@ -33,7 +33,7 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
             cl.fine_assessed, cl.issued_via,
             bc.barcode, bc.shelf_location,
             b.book_id, b.title, b.author, b.isbn, b.cover_url, b.card_tint,
-            u.full_name as user_name, u.email as user_email
+            u.full_name as user_name, u.email as user_email, u.enrollment_no as user_enrollment_no
         FROM circulation_loans cl
         JOIN book_copies bc ON cl.copy_id = bc.copy_id
         JOIN books b ON bc.book_id = b.book_id
@@ -55,6 +55,7 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
                 user_id=r["user_id"],
                 user_name=r["user_name"],
                 user_email=r["user_email"],
+                user_enrollment_no=r["user_enrollment_no"] or f"STU{r['user_id']:05d}",
                 book_id=r["book_id"],
                 title=r["title"],
                 author=r["author"],
@@ -81,7 +82,7 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
             cl.fine_assessed, cl.issued_via,
             bc.barcode, bc.shelf_location,
             b.book_id, b.title, b.author, b.isbn, b.cover_url, b.card_tint,
-            u.full_name as user_name, u.email as user_email
+            u.full_name as user_name, u.email as user_email, u.enrollment_no as user_enrollment_no
         FROM circulation_loans cl
         JOIN book_copies bc ON cl.copy_id = bc.copy_id
         JOIN books b ON bc.book_id = b.book_id
@@ -103,6 +104,7 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
                 user_id=r["user_id"],
                 user_name=r["user_name"],
                 user_email=r["user_email"],
+                user_enrollment_no=r["user_enrollment_no"] or f"STU{r['user_id']:05d}",
                 book_id=r["book_id"],
                 title=r["title"],
                 author=r["author"],
@@ -161,8 +163,41 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
         ) for row in cursor.fetchall()
     ]
 
+    # 5. Student Book Requests
+    cursor.execute(
+        """
+        SELECT 
+            br.request_id, br.user_id, br.book_id, br.title, br.author, br.category, 
+            br.notes, br.status, br.created_at, br.updated_at,
+            u.full_name as user_name, u.enrollment_no as user_enrollment_no, u.email as user_email
+        FROM book_requests br
+        JOIN users u ON br.user_id = u.user_id
+        WHERE br.user_id = ?
+        ORDER BY br.created_at DESC
+        """,
+        (user_id,)
+    )
+    book_requests = [
+        BookRequestOut(
+            request_id=r["request_id"],
+            user_id=r["user_id"],
+            user_name=r["user_name"],
+            user_enrollment_no=r["user_enrollment_no"] or f"STU{r['user_id']:05d}",
+            user_email=r["user_email"],
+            book_id=r["book_id"],
+            title=r["title"],
+            author=r["author"],
+            category=r["category"],
+            notes=r["notes"],
+            status=r["status"],
+            created_at=r["created_at"],
+            updated_at=r["updated_at"]
+        ) for r in cursor.fetchall()
+    ]
+
     user_out = UserOut(
         user_id=user_row["user_id"],
+        enrollment_no=user_row["enrollment_no"] or f"STU{user_row['user_id']:05d}",
         full_name=user_row["full_name"],
         email=user_row["email"],
         role=user_row["role"],
@@ -175,6 +210,7 @@ def get_user_dashboard(user_id: int, db: sqlite3.Connection = Depends(get_db)):
         user=user_out,
         active_loans=active_loans,
         loan_history=loan_history,
-        active_waitlists=waitlist_cards
+        active_waitlists=waitlist_cards,
+        book_requests=book_requests
     )
 

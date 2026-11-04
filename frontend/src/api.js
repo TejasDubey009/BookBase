@@ -30,10 +30,16 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   // Auth
-  login: (email, password, role) =>
+  login: (identifier, password, role) =>
     request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password, role }),
+      body: JSON.stringify({ identifier, email: identifier, enrollment_no: identifier, password, role }),
+    }),
+
+  register: (registrationData) =>
+    request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(registrationData),
     }),
 
   getDemoUsers: () => request('/auth/demo-users'),
@@ -96,9 +102,38 @@ export const api = {
 
   getAdminOverview: () => request('/admin/overview'),
 
+  getGroupedBooks: (search = '') => {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    return request(`/admin/grouped-books${query}`);
+  },
+
+  settleFine: (userId, amountSettled = null) =>
+    request('/admin/settle-fine', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, amount_settled: amountSettled }),
+    }),
+
   resetDemoDb: () =>
     request('/admin/reset-demo', {
       method: 'POST',
+    }),
+
+  // Student Book Procurement Requests
+  getBookRequests: (userId = null) => {
+    const query = userId ? `?user_id=${userId}` : '';
+    return request(`/requests${query}`);
+  },
+
+  createBookRequest: (requestData) =>
+    request('/requests', {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+    }),
+
+  updateBookRequestStatus: (requestId, status) =>
+    request(`/requests/${requestId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 
   // DBMS Telemetry
