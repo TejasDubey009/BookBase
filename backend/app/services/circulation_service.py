@@ -15,6 +15,7 @@ from app.db.queries import count_active_loans
 from app.schemas.circulation import (
     CheckoutRequest,
     CheckoutResponse,
+    LendingPolicyOut,
     ReturnRequest,
     ReturnResponse,
     WaitlistRequest,
@@ -31,6 +32,10 @@ _ACTIVE_LOAN_DETAILS_SELECT = """
     JOIN books b ON bc.book_id = b.book_id
     JOIN users u ON cl.user_id = u.user_id
 """
+
+
+def get_lending_policy() -> LendingPolicyOut:
+    return LendingPolicyOut(overdue_fine_rate_per_day=OVERDUE_FINE_RATE_PER_DAY)
 
 
 def overdue_days(due_date: datetime.datetime, at: datetime.datetime) -> int:

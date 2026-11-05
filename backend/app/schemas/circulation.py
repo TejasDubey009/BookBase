@@ -3,6 +3,10 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class LendingPolicyOut(BaseModel):
+    overdue_fine_rate_per_day: float
+
+
 class CheckoutRequest(BaseModel):
     user_id: int
     book_id: int

@@ -1,6 +1,6 @@
 import { MapPin, Mail, Clock, BookMarked, GraduationCap, ShieldCheck, Library } from 'lucide-react';
 
-export default function Footer() {
+export default function Footer({ fineRate }) {
   return (
     <footer className="mt-20 border-t border-slate-200/90 bg-white/80 backdrop-blur-md text-slate-600 text-xs">
       {/* Top Banner: Circulation Desk Status */}
@@ -71,7 +71,7 @@ export default function Footer() {
               </li>
               <li className="flex justify-between">
                 <span className="text-slate-500">Overdue Retention Fee</span>
-                <span className="font-medium text-rose-600 font-mono">₹2.00 / day</span>
+                <span className="font-medium text-rose-600 font-mono">{fineRate} / day</span>
               </li>
             </ul>
           </div>

@@ -1,6 +1,6 @@
 import { CreditCard } from 'lucide-react';
 
-export default function FinesTab({ kpis, students, onSettleFine }) {
+export default function FinesTab({ kpis, students, fineRate, onSettleFine }) {
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-200/80 bg-slate-50/50 flex items-center justify-between">
@@ -10,7 +10,7 @@ export default function FinesTab({ kpis, students, onSettleFine }) {
             Student Fines Ledger &amp; Cashier Settlement Desk
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Students with overdue penalties. Fines accumulate at ₹2.00 per day after the 14-day loan duration.
+            Students with overdue penalties. Fines accumulate at {fineRate} per day after the 14-day loan duration.
           </p>
         </div>
         <div className="text-right">

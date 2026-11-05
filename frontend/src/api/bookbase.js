@@ -97,6 +97,8 @@ export const api = {
       body: JSON.stringify({ loan_id: loanId, copy_id: copyId }),
     }),
 
+  getLendingPolicy: () => request('/policy'),
+
   // Dashboards & Admin
   getUserDashboard: (userId) => request(`/users/${userId}/dashboard`),
 

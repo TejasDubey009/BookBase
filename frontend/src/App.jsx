@@ -12,11 +12,13 @@ import BookRequestModal from './features/requests/BookRequestModal';
 import MemberShelfView from './features/shelf/MemberShelfView';
 import { useCatalog } from './hooks/useCatalog';
 import { useCirculationActions } from './hooks/useCirculationActions';
+import { useFineRate } from './hooks/useFineRate';
 import { useSession } from './hooks/useSession';
 import { useToast } from './hooks/useToast';
 
 export default function App() {
   const { toast, showToast, dismissToast } = useToast();
+  const fineRate = useFineRate();
 
   // Bumped after every change on the server, so anything showing that data refetches
   const [lastEventTimestamp, setLastEventTimestamp] = useState(Date.now());
@@ -135,6 +137,7 @@ export default function App() {
             onOpenBookRequest={() => handleOpenBookRequest()}
             loadingActionId={loadingActionId}
             showToast={showToast}
+            fineRate={fineRate}
           />
         )}
 
@@ -146,12 +149,13 @@ export default function App() {
             loadingActionId={loadingActionId}
             showToast={showToast}
             lastEventTimestamp={lastEventTimestamp}
+            fineRate={fineRate}
           />
         )}
       </main>
 
       {/* Institutional Central Library Footer */}
-      <Footer />
+      <Footer fineRate={fineRate} />
 
       {/* Book Detail & 3NF Inventory Modal */}
       {selectedBookId && (

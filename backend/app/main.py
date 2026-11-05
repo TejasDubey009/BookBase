@@ -10,7 +10,7 @@ from app.config import FRONTEND_DIST
 from app.core.errors import ServiceError
 from app.db.connection import get_raw_connection
 from app.db.seed import seed_database
-from app.routers import admin, auth, books, circulation, requests, telemetry, users
+from app.routers import admin, auth, books, circulation, policy, requests, telemetry, users
 
 
 @asynccontextmanager
@@ -55,6 +55,7 @@ for prefix in ["/api/v1", "/v1"]:
     app.include_router(admin.router, prefix=prefix)
     app.include_router(requests.router, prefix=prefix)
     app.include_router(telemetry.router, prefix=prefix)
+    app.include_router(policy.router, prefix=prefix)
 
 
 @app.get("/api/v1/health")

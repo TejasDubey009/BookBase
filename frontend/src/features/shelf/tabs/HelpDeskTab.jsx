@@ -1,6 +1,6 @@
 import { Clock, HelpCircle, Mail, MapPin, PhoneCall, ShieldCheck } from 'lucide-react';
 
-export default function HelpDeskTab() {
+export default function HelpDeskTab({ fineRate }) {
   return (
     <div id="helpdesk-section" className="space-y-6">
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
@@ -57,7 +57,7 @@ export default function HelpDeskTab() {
               </div>
               <div className="flex justify-between">
                 <span>Late Return Penalty:</span>
-                <span className="font-mono font-bold text-rose-600">₹2.00 / day / book</span>
+                <span className="font-mono font-bold text-rose-600">{fineRate} / day / book</span>
               </div>
             </div>
             <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500">
