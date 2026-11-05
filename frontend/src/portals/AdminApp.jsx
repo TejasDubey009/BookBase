@@ -21,14 +21,14 @@ function AdminViews({ app }) {
   }
 
   const handleResetDemo = async () => {
-    if (!window.confirm('Reset BookBase database back to the clean initial state?')) {
+    if (!window.confirm('Reset the library back to the demo state? Accounts are kept.')) {
       return;
     }
     try {
       await api.resetDemoDb();
       app.showToast({
         type: 'success',
-        message: '⚡ Database cleanly reset to pristine demo state!',
+        message: 'The library is back to the demo state.',
       });
       app.notifyDataChanged();
     } catch (err) {

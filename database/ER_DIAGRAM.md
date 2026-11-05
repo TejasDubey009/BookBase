@@ -1,9 +1,10 @@
 # BookBase ER diagram
 
-This matches `backend/app/db/schema_postgres.sql`. GitHub draws the diagram below. On Supabase, **Database → Schema Visualizer** draws the same relationships from the live tables.
+This matches `supabase/schema.sql`. GitHub draws the diagram below. On Supabase, **Database → Schema Visualizer** draws the same relationships from the live tables.
 
 ```mermaid
 erDiagram
+    auth_users ||--|| users : "signs in as"
     users ||--o{ circulation_loans : "borrows"
     users ||--o{ waitlist_reservations : "queues for"
     users ||--o{ book_requests : "asks for"
@@ -14,12 +15,18 @@ erDiagram
     book_copies ||--o{ circulation_loans : "is lent in"
     circulation_loans ||--o{ return_requests : "is returned through"
 
+    auth_users {
+        uuid id PK
+        text email
+        text encrypted_password
+    }
+
     users {
         int user_id PK
+        uuid auth_id FK
         text enrollment_no UK
         text full_name
         text email UK
-        text password_hash
         text role "admin or member"
         int max_books_quota
         numeric outstanding_fines
@@ -104,6 +111,8 @@ erDiagram
     }
 ```
 
+`auth_users` is Supabase Auth's own `auth.users` table, which keeps every email and password. Each `users` row is one login's library account, linked by `auth_id`, so BookBase never stores a password itself.
+
 `db_audit_logs` has no foreign keys on purpose: it is an append-only history, and it must outlive whatever it describes.
 
 ## Rules the database enforces
@@ -114,6 +123,7 @@ erDiagram
 | A loan can have only one pending return request | Partial unique index `idx_single_pending_return_per_loan` on `loan_id` where `status = 'Pending'` |
 | A student can hold only one waiting spot per title | Partial unique index `idx_unique_active_waitlist_per_user` on `(book_id, user_id)` where `status = 'Waiting'` |
 | Each copy has one unique code | `UNIQUE` on `book_copies.barcode` |
+| Each login has exactly one library account | `UNIQUE` on `users.auth_id` |
 | A copy with loan history can't be deleted, and nor can a student with one | `ON DELETE RESTRICT` on `circulation_loans.copy_id` and `user_id` |
 | Fines and quotas stay sensible | `CHECK (outstanding_fines >= 0)`, `CHECK (max_books_quota > 0)`, `CHECK (fine_assessed >= 0)` |
 | Status and role columns hold only known values | `CHECK (status IN (...))`, `CHECK (role IN ('admin', 'member'))` |

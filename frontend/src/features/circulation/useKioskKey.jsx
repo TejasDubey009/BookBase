@@ -17,9 +17,8 @@ export function useKioskKey() {
     remember: () => {
       if (key) saveKioskKey(key);
     },
-    // The kiosk check is the only thing that answers 403 here: these dialogs act on the student's own account
     noteError: (err) => {
-      if (err.status === 403) setNeeded(true);
+      if (err.hint === 'kiosk_key_required') setNeeded(true);
     },
     field: needed && (
       <div>

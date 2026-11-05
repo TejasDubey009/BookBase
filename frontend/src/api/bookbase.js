@@ -1,186 +1,166 @@
 /**
- * BookBase REST API Client
- * Strict API Boundary: All state operations communicate directly via /api/v1/ REST endpoints.
+ * BookBase's data, straight from Supabase. Sign-in goes through Supabase Auth, and everything else
+ * calls a database function (see supabase/functions.sql), which checks who is asking and applies
+ * the library's rules. Each method returns the same shape the screens have always used.
  */
+import { SUPABASE_SETUP_MESSAGE, supabase } from './supabase';
 
-const BASE_URL = '/api/v1';
-// Each portal keeps its own sign-in, even when several are hosted on one domain
-const STORAGE_TOKEN = `bb_token_${import.meta.env.VITE_PORTAL}`;
 // Registers this browser as a kiosk. Unlike a sign-in, it stays when a student signs out.
 const STORAGE_KIOSK_KEY = 'bb_kiosk_key';
 
-let onSessionExpired = () => {};
-
-export const getAuthToken = () => localStorage.getItem(STORAGE_TOKEN);
-export const setAuthToken = (token) => localStorage.setItem(STORAGE_TOKEN, token);
-export const clearAuthToken = () => localStorage.removeItem(STORAGE_TOKEN);
 export const saveKioskKey = (key) => localStorage.setItem(STORAGE_KIOSK_KEY, key);
+const storedKioskKey = () => localStorage.getItem(STORAGE_KIOSK_KEY) || undefined;
 
-/** For what a student may only do at the kiosk. Without a key given, sends the one this browser has. */
-const kioskHeaders = (kioskKey = localStorage.getItem(STORAGE_KIOSK_KEY)) =>
-  kioskKey ? { 'X-BookBase-Kiosk-Key': kioskKey } : {};
+function client() {
+  if (!supabase) throw new Error(SUPABASE_SETUP_MESSAGE);
+  return supabase;
+}
 
-/** Registers what to do when the server stops accepting the stored session token. */
-export const setSessionExpiredHandler = (handler) => {
-  onSessionExpired = handler;
-};
-
-async function request(endpoint, { skipAuth = false, ...options } = {}) {
-  const token = skipAuth ? null : getAuthToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...options.headers,
-  };
-
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  const data = await response.json().catch(() => null);
-
-  // Only if the rejected token is still the stored one: a late reply must not end a newer session
-  if (response.status === 401 && token && token === getAuthToken()) {
-    clearAuthToken();
-    onSessionExpired();
+/** Calls a database function. Arguments left undefined use the function's defaults. */
+async function call(fn, args = {}) {
+  const { data, error } = await client().rpc(fn, args);
+  if (error) {
+    const err = new Error(error.message || 'Request failed');
+    err.code = error.code;
+    err.hint = error.hint;
+    throw err;
   }
-
-  if (!response.ok) {
-    const error = new Error(data?.detail || response.statusText || 'Request failed');
-    error.status = response.status;
-    throw error;
-  }
-
   return data;
 }
 
+/** Signs out of this site only. Other sites and devices stay signed in. */
+const signOutHere = () => client().auth.signOut({ scope: 'local' });
+
+export const onAuthChange = (handler) => client().auth.onAuthStateChange(handler);
+
 export const api = {
-  // Auth
-  login: (identifier, password, role) =>
-    request('/auth/login', {
-      skipAuth: true,
-      method: 'POST',
-      body: JSON.stringify({ identifier, email: identifier, enrollment_no: identifier, password, role }),
-    }),
-
-  register: (registrationData) =>
-    request('/auth/register', {
-      skipAuth: true,
-      method: 'POST',
-      body: JSON.stringify(registrationData),
-    }),
-
-  getDemoUsers: () => request('/auth/demo-users', { skipAuth: true }),
-
-  getCurrentUser: () => request('/auth/me'),
-
-  // Books & Inventory
-  getBooks: (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.search) query.set('search', params.search);
-    if (params.category && params.category !== 'All') query.set('category', params.category);
-    if (params.availability && params.availability !== 'all') query.set('availability', params.availability);
-    return request(`/books?${query.toString()}`);
+  // Auth. A sign-in is refused on the wrong portal: a student can't use the admin site, and the reverse.
+  login: async (email, password, role) => {
+    const { error } = await client().auth.signInWithPassword({ email, password });
+    if (error) {
+      throw new Error(error.message === 'Invalid login credentials' ? 'Invalid email or password' : error.message);
+    }
+    const profile = await call('my_profile');
+    if (!profile) {
+      await signOutHere();
+      throw new Error('This login has no library account.');
+    }
+    if (role && profile.role !== role) {
+      await signOutHere();
+      throw new Error(`This account is registered as a ${profile.role}, not ${role}`);
+    }
+    return { user: profile };
   },
 
-  getBookDetail: (bookId) => request(`/books/${bookId}`),
+  // Asks the database first, because Supabase Auth would only report a refused sign-up as a generic error
+  register: async ({ full_name, enrollment_no, email, password, staff_code }) => {
+    const problem = await call('registration_problem', {
+      p_full_name: full_name,
+      p_enrollment_no: enrollment_no,
+      p_email: email,
+      p_staff_code: staff_code,
+    });
+    if (problem) throw new Error(problem);
 
-  createBook: (bookData) =>
-    request('/books', {
-      method: 'POST',
-      body: JSON.stringify(bookData),
+    const { data, error } = await client().auth.signUp({
+      email,
+      password,
+      options: { data: { full_name, enrollment_no, ...(staff_code !== undefined && { staff_code }) } },
+    });
+    if (error) throw new Error(error.message);
+    if (!data.session) {
+      throw new Error('Account created. Check your email to confirm it, then sign in.');
+    }
+    return { user: await call('my_profile') };
+  },
+
+  logout: signOutHere,
+
+  getDemoUsers: () => call('demo_accounts'),
+
+  getCurrentUser: async () => {
+    const { data } = await client().auth.getSession();
+    return data.session ? call('my_profile') : null;
+  },
+
+  // Books & Inventory
+  getBooks: (params = {}) =>
+    call('list_books', {
+      p_search: params.search || undefined,
+      p_category: params.category && params.category !== 'All' ? params.category : undefined,
+      p_availability: params.availability && params.availability !== 'all' ? params.availability : undefined,
     }),
 
-  addCopy: (bookId, copyData) =>
-    request(`/books/${bookId}/copies`, {
-      method: 'POST',
-      body: JSON.stringify(copyData),
+  getBookDetail: (bookId) => call('get_book', { p_book_id: bookId }),
+
+  createBook: (book) =>
+    call('create_book', {
+      p_isbn: book.isbn,
+      p_title: book.title,
+      p_author: book.author,
+      p_category: book.category,
+      p_published_year: book.published_year,
+      p_cover_url: book.cover_url,
+      p_description: book.description,
+      p_card_tint: book.card_tint,
+      p_initial_copies_count: book.initial_copies_count,
+      p_shelf_location: book.shelf_location,
     }),
 
-  // Circulation & Waitlist Engine
+  // Circulation & Waitlist Engine. A student's borrow or return needs this browser's kiosk key.
   checkoutBook: (bookId, barcode, kioskKey) =>
-    request('/circulation/checkout', {
-      method: 'POST',
-      headers: kioskHeaders(kioskKey),
-      body: JSON.stringify({ book_id: bookId, barcode }),
+    call('checkout_book', {
+      p_book_id: bookId,
+      p_barcode: barcode || undefined,
+      p_kiosk_key: kioskKey ?? storedKioskKey(),
     }),
 
-  joinWaitlist: (bookId) =>
-    request('/circulation/waitlist', {
-      method: 'POST',
-      body: JSON.stringify({ book_id: bookId }),
-    }),
+  joinWaitlist: (bookId) => call('join_waitlist', { p_book_id: bookId }),
 
-  cancelWaitlist: (reservationId) =>
-    request(`/circulation/waitlist/${reservationId}`, {
-      method: 'DELETE',
-    }),
+  cancelWaitlist: (reservationId) => call('cancel_reservation', { p_reservation_id: reservationId }),
 
-  raiseReturnRequest: (returnRequest, kioskKey) =>
-    request('/circulation/return-requests', {
-      method: 'POST',
-      headers: kioskHeaders(kioskKey),
-      body: JSON.stringify(returnRequest),
+  raiseReturnRequest: ({ loan_id, barcode, condition, notes }, kioskKey) =>
+    call('raise_return_request', {
+      p_loan_id: loan_id,
+      p_barcode: barcode,
+      p_condition: condition,
+      p_notes: notes || undefined,
+      p_kiosk_key: kioskKey ?? storedKioskKey(),
     }),
 
   confirmReturnRequest: (returnRequestId, condition) =>
-    request(`/circulation/return-requests/${returnRequestId}/confirm`, {
-      method: 'POST',
-      body: JSON.stringify({ condition }),
-    }),
+    call('confirm_return_request', { p_return_request_id: returnRequestId, p_condition: condition }),
 
   rejectReturnRequest: (returnRequestId) =>
-    request(`/circulation/return-requests/${returnRequestId}/reject`, {
-      method: 'POST',
-    }),
+    call('reject_return_request', { p_return_request_id: returnRequestId }),
 
-  getLendingPolicy: () => request('/policy'),
+  getLendingPolicy: () => call('lending_policy'),
 
   // Dashboards & Admin
-  getUserDashboard: (userId) => request(`/users/${userId}/dashboard`),
+  getUserDashboard: (userId) => call('user_dashboard', { p_user_id: userId }),
 
-  getAdminOverview: () => request('/admin/overview'),
+  getAdminOverview: () => call('admin_overview'),
 
-  getGroupedBooks: (search = '') => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : '';
-    return request(`/admin/grouped-books${query}`);
-  },
+  getGroupedBooks: (search = '') => call('grouped_books', { p_search: search || undefined }),
 
   settleFine: (userId, amountSettled = null) =>
-    request('/admin/settle-fine', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: userId, amount_settled: amountSettled }),
-    }),
+    call('settle_fine', { p_user_id: userId, p_amount: amountSettled ?? undefined }),
 
-  // Resetting recreates every account, so the reply carries a new token for this librarian
-  resetDemoDb: async () => {
-    const resp = await request('/admin/reset-demo', { method: 'POST' });
-    if (resp.token) setAuthToken(resp.token);
-    return resp;
-  },
+  // Accounts live in Supabase Auth, so a reset keeps them and nobody is signed out
+  resetDemoDb: () => call('reset_library'),
 
-  // Student Book Procurement Requests
-  getBookRequests: () => request('/requests'),
+  // Student book requests
+  getBookRequests: () => call('list_book_requests'),
 
-  createBookRequest: (requestData) =>
-    request('/requests', {
-      method: 'POST',
-      body: JSON.stringify(requestData),
+  createBookRequest: ({ title, author, category, notes, book_id }) =>
+    call('create_book_request', {
+      p_title: title,
+      p_author: author || undefined,
+      p_category: category || undefined,
+      p_notes: notes || undefined,
+      p_book_id: book_id || undefined,
     }),
 
   updateBookRequestStatus: (requestId, status) =>
-    request(`/requests/${requestId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    }),
-
-  // DBMS Telemetry
-  getTelemetryLogs: (limit = 40, operationType = null) => {
-    const query = new URLSearchParams({ limit });
-    if (operationType && operationType !== 'ALL') {
-      query.set('operation_type', operationType);
-    }
-    return request(`/telemetry/logs?${query.toString()}`);
-  },
+    call('update_book_request_status', { p_request_id: requestId, p_status: status }),
 };

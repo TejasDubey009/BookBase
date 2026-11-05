@@ -22,7 +22,7 @@ export default function SignInPanel({
           </label>
           <div className="grid grid-cols-2 gap-2">
             {filteredUsers.map((u) => {
-              const isSelected = identifier.toLowerCase() === u.enrollment_no.toLowerCase();
+              const isSelected = identifier.toLowerCase() === u.email.toLowerCase();
               return (
                 <button
                   key={u.enrollment_no}
@@ -51,15 +51,15 @@ export default function SignInPanel({
       <form onSubmit={handleManualLogin} className="space-y-3">
         <div>
           <label className="block text-xs text-muted mb-1">
-            Enrollment Number or Email
+            Email
           </label>
           <div className="relative">
             <input
-              type="text"
+              type="email"
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="Enrollment number or email"
+              placeholder="you@college.edu"
               className="w-full px-3 py-2 text-xs rounded border border-field bg-white text-ink focus:outline-none focus:ring-1 focus:ring-ink focus:border-ink"
             />
           </div>

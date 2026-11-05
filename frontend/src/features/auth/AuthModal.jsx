@@ -9,7 +9,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   const [authMode, setAuthMode] = useState('signin'); // 'signin' or 'signup'
   
   // Sign In fields
-  const [identifier, setIdentifier] = useState(''); // Enrollment Number or Email
+  const [identifier, setIdentifier] = useState(''); // The account's email: Supabase Auth signs in by email
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   // With demo mode on, start from the first seeded account for the role. Otherwise start blank.
   const resetSignInFields = (role) => {
     const demoAccount = demoUsers.find((u) => u.role === role);
-    setIdentifier(demoAccount?.enrollment_no ?? '');
+    setIdentifier(demoAccount?.email ?? '');
     setPassword(demoAccount?.sample_password ?? '');
   };
 
@@ -38,7 +38,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   if (!isOpen) return null;
 
   const handleQuickSelect = (u) => {
-    setIdentifier(u.enrollment_no);
+    setIdentifier(u.email);
     setPassword(u.sample_password);
   };
 
@@ -46,7 +46,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
     e.preventDefault();
     setLoading(true);
     try {
-      const resp = await api.login(identifier.trim(), password, roleTab);
+      const resp = await api.login(identifier.trim().toLowerCase(), password, roleTab);
       onLoginSuccess(resp);
       // The modal stays mounted, and the next person at a shared kiosk must not inherit these
       resetSignInFields(roleTab);
@@ -114,7 +114,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
               <p className="text-xs text-muted">
                 {authMode === 'signup'
                   ? 'One account works on the Library Kiosk and the Student Portal'
-                  : 'Use your Enrollment Number and password'}
+                  : 'Use your email and password'}
               </p>
             </div>
           </div>
