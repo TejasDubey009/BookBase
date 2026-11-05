@@ -39,22 +39,22 @@ export default function BookDetailModal({
   if (!bookId) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div 
-        className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white w-full max-w-3xl rounded-lg border border-line shadow-soft overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="px-6 py-4 border-b border-line flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-shelf text-ink">
               {book?.category || 'Book Detail'}
             </span>
-            <span className="text-xs font-mono text-slate-500">
+            <span className="text-xs text-muted">
               ISBN {book?.isbn}
             </span>
             {portal === 'student' && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <span className="text-xs text-muted">
                 Remote View
               </span>
             )}
@@ -62,7 +62,7 @@ export default function BookDetailModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors"
+            className="p-1.5 rounded-full hover:bg-line text-muted hover:text-ink transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -71,11 +71,11 @@ export default function BookDetailModal({
         {/* Modal Body (Scrollable) */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
           {loading ? (
-            <div className="py-20 text-center text-slate-400 text-sm">
+            <div className="py-20 text-center text-muted text-sm">
               Loading book specifications and physical inventory...
             </div>
           ) : error ? (
-            <div className="p-4 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-sm">
+            <div className="p-4 rounded bg-shelf text-danger border border-line text-sm">
               {error}
             </div>
           ) : book ? (
@@ -88,10 +88,10 @@ export default function BookDetailModal({
         </div>
 
         {/* Modal Footer with Contextual Actions */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-line flex items-center justify-between">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors"
+            className="px-4 py-2 rounded text-sm text-body hover:text-ink transition-colors"
           >
             Close
           </button>

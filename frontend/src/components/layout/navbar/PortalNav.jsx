@@ -1,41 +1,32 @@
-import { ArrowRightLeft, BookOpen, BookPlus, Clock, HelpCircle, ShieldCheck } from 'lucide-react';
+const TAB_CLASSES = 'flex items-center gap-1.5 h-14 border-b-2 whitespace-nowrap transition-colors';
+const IDLE_CLASSES = 'border-transparent text-muted hover:text-ink';
 
-function NavTab({ active, onClick, relative = false, children }) {
+function NavTab({ active, onClick, children }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all${relative ? ' relative' : ''} ${
-        active
-          ? 'bg-white text-indigo-700 shadow-xs'
-          : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-      }`}
-    >
+    <button onClick={onClick} className={`${TAB_CLASSES} ${active ? 'border-ink text-ink' : IDLE_CLASSES}`}>
       {children}
     </button>
   );
 }
 
-function NavAction({ onClick, icon: Icon, children }) {
+function NavAction({ onClick, children }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-white/50 transition-all"
-    >
-      <Icon className="w-3.5 h-3.5 text-indigo-500" />
-      <span>{children}</span>
+    <button onClick={onClick} className={`${TAB_CLASSES} ${IDLE_CLASSES}`}>
+      {children}
     </button>
   );
+}
+
+function Count({ value }) {
+  if (!value) return null;
+  return <span className="text-xs text-muted tabular-nums">{value}</span>;
 }
 
 function ShelfTab({ currentView, setCurrentView, currentUser, children }) {
   return (
-    <NavTab active={currentView === 'my-shelf'} onClick={() => setCurrentView('my-shelf')} relative>
+    <NavTab active={currentView === 'my-shelf'} onClick={() => setCurrentView('my-shelf')}>
       {children}
-      {currentUser.active_loans_count > 0 && (
-        <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-100 text-indigo-700 font-mono font-bold">
-          {currentUser.active_loans_count}
-        </span>
-      )}
+      <Count value={currentUser.active_loans_count} />
     </NavTab>
   );
 }
@@ -44,18 +35,16 @@ function KioskNav({ currentView, setCurrentView, currentUser, onOpenBookRequest 
   return (
     <>
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
-        <BookOpen className="w-4 h-4 text-indigo-600" />
-        <span>Kiosk Catalog (Borrow)</span>
+        Kiosk Catalog (Borrow)
       </NavTab>
 
       {currentUser && (
         <ShelfTab currentView={currentView} setCurrentView={setCurrentView} currentUser={currentUser}>
-          <ArrowRightLeft className="w-4 h-4 text-emerald-600" />
-          <span>Return Books</span>
+          Return Books
         </ShelfTab>
       )}
 
-      <NavAction onClick={onOpenBookRequest} icon={BookPlus}>Request Title</NavAction>
+      <NavAction onClick={onOpenBookRequest}>Request Title</NavAction>
     </>
   );
 }
@@ -71,19 +60,17 @@ function StudentNav({ currentView, setCurrentView, currentUser, onOpenBookReques
   return (
     <>
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
-        <BookOpen className="w-4 h-4 text-indigo-600" />
-        <span>Catalog (Browse Only)</span>
+        Catalog (Browse Only)
       </NavTab>
 
       {currentUser && (
         <ShelfTab currentView={currentView} setCurrentView={setCurrentView} currentUser={currentUser}>
-          <Clock className="w-4 h-4 text-indigo-600" />
-          <span>Due Dates &amp; Shelf</span>
+          Due Dates &amp; Shelf
         </ShelfTab>
       )}
 
-      <NavAction onClick={onOpenBookRequest} icon={BookPlus}>Book Request</NavAction>
-      <NavAction onClick={openHelpDesk} icon={HelpCircle}>Help Desk</NavAction>
+      <NavAction onClick={onOpenBookRequest}>Book Request</NavAction>
+      <NavAction onClick={openHelpDesk}>Help Desk</NavAction>
     </>
   );
 }
@@ -92,18 +79,12 @@ function AdminNav({ currentView, setCurrentView, pendingRequestsCount }) {
   return (
     <>
       <NavTab active={currentView === 'admin-console'} onClick={() => setCurrentView('admin-console')}>
-        <ShieldCheck className="w-4 h-4 text-indigo-600" />
-        <span>Circulation Desk</span>
-        {pendingRequestsCount > 0 && (
-          <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] bg-amber-400 text-amber-950 font-bold">
-            {pendingRequestsCount}
-          </span>
-        )}
+        Circulation Desk
+        <Count value={pendingRequestsCount} />
       </NavTab>
 
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
-        <BookOpen className="w-4 h-4 text-indigo-600" />
-        <span>Public Catalog</span>
+        Public Catalog
       </NavTab>
     </>
   );
@@ -115,7 +96,7 @@ export default function PortalNav({ activePortal, currentView, setCurrentView, c
   if (activePortal === 'admin' && currentUser?.role !== 'admin') return null;
 
   return (
-    <nav className="hidden md:flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/70 text-xs font-semibold">
+    <nav className="hidden md:flex items-center gap-5 mr-auto text-sm relative top-px">
       {activePortal === 'kiosk' && (
         <KioskNav currentView={currentView} setCurrentView={setCurrentView} currentUser={currentUser} onOpenBookRequest={onOpenBookRequest} />
       )}

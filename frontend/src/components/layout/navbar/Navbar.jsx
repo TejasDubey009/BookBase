@@ -1,7 +1,6 @@
 import { getPortalMeta } from '../../../constants/portals';
 import PortalBrand from './PortalBrand';
 import PortalNav from './PortalNav';
-import PortalStrip from './PortalStrip';
 import ProfileMenu from './ProfileMenu';
 
 export default function Navbar({
@@ -20,10 +19,8 @@ export default function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs transition-all">
-      <PortalStrip activePortal={activePortal} />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-white border-b border-line">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-6">
         <PortalBrand activePortal={activePortal} onClick={goHome} />
         <PortalNav
           activePortal={activePortal}

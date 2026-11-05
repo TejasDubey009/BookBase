@@ -1,50 +1,33 @@
-import { BookPlus, Plus } from 'lucide-react';
-
-export default function CatalogHeader({ books, currentUser, portal, onOpenAddBook, onOpenBookRequest }) {
+export default function CatalogHeader({ books, currentUser, portal, onOpenAddBook, onOpenBookRequest, children }) {
   const totalAvailable = books.reduce((acc, b) => acc + (b.available_copies || 0), 0);
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-          Curriculum Library
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-          Curriculum textbooks, references, and technical publications for Computer Science &amp; Business Systems.
-        </p>
+        <h1 className="font-serif text-[28px] leading-snug text-ink">Curriculum Library</h1>
+        {children}
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Quick Catalog Stats */}
-        <div className="hidden sm:flex items-center gap-4 bg-slate-50 border border-slate-200/80 p-3 rounded-2xl">
-          <div className="px-2 text-center">
-            <div className="text-base font-extrabold font-mono text-slate-900">{books.length}</div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Titles</div>
-          </div>
-          <div className="h-6 w-px bg-slate-200"></div>
-          <div className="px-2 text-center">
-            <div className="text-base font-extrabold font-mono text-emerald-600">{totalAvailable}</div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Available</div>
-          </div>
-        </div>
+      <div className="flex items-center gap-4 shrink-0">
+        <p className="text-sm text-muted tabular-nums whitespace-nowrap">
+          {books.length} Titles · {totalAvailable} Available
+        </p>
 
         {portal === 'kiosk' || portal === 'student' ? (
           <button
             onClick={onOpenBookRequest}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-semibold border border-indigo-200 transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 rounded border border-field text-sm text-body hover:bg-shelf whitespace-nowrap transition-colors"
           >
-            <BookPlus className="w-4 h-4 text-indigo-600" />
-            <span>Request Title</span>
+            Request Title
           </button>
         ) : null}
 
         {currentUser?.role === 'admin' && (
           <button
             onClick={onOpenAddBook}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 self-start md:self-auto"
+            className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium whitespace-nowrap transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Title</span>
+            Add Title
           </button>
         )}
       </div>

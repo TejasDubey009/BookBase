@@ -1,13 +1,13 @@
 const STATUS_CLASSES = {
-  Procured: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
-  Approved: 'bg-blue-100 text-blue-800 border border-blue-300',
-  Rejected: 'bg-rose-100 text-rose-800 border border-rose-300',
+  Procured: 'bg-ink text-white',
+  Approved: 'bg-shelf text-ink',
+  Rejected: 'border border-field text-danger',
 };
-const PENDING_CLASSES = 'bg-amber-100 text-amber-800 border border-amber-300';
+const PENDING_CLASSES = 'border border-field text-body';
 
 export default function RequestStatusBadge({ status }) {
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${STATUS_CLASSES[status] || PENDING_CLASSES}`}>
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs ${STATUS_CLASSES[status] || PENDING_CLASSES}`}>
       {status}
     </span>
   );

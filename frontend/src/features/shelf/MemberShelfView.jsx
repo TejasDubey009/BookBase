@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, BookPlus, Clock, HelpCircle, History } from 'lucide-react';
 import { api } from '../../api/bookbase';
 import LoadingState from '../../components/ui/LoadingState';
 import TabButton from '../../components/ui/TabButton';
@@ -55,26 +54,26 @@ export default function MemberShelfView({
   const user = dashboard?.user || currentUser;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <ShelfPortalBanner portal={portal} />
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <PatronSummaryCard user={user} activeLoansCount={activeLoans.length} onOpenBookRequest={onOpenBookRequest}>
+        <ShelfPortalBanner portal={portal} />
+      </PatronSummaryCard>
 
-      <PatronSummaryCard user={user} activeLoansCount={activeLoans.length} onOpenBookRequest={onOpenBookRequest} />
-
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
-        <TabButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')} icon={BookOpen}>
+      <div className="flex items-center gap-6 border-b border-line overflow-x-auto no-scrollbar">
+        <TabButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')}>
           <span>Active Borrowings &amp; Due Dates ({activeLoans.length})</span>
         </TabButton>
-        <TabButton active={activeTab === 'waitlists'} onClick={() => setActiveTab('waitlists')} icon={Clock}>
+        <TabButton active={activeTab === 'waitlists'} onClick={() => setActiveTab('waitlists')}>
           <span>Course Reservations ({waitlists.length})</span>
         </TabButton>
-        <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} icon={BookPlus}>
+        <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')}>
           <span>My Acquisition Requests ({bookRequests.length})</span>
         </TabButton>
-        <TabButton id="helpdesk-tab" active={activeTab === 'helpdesk'} onClick={() => setActiveTab('helpdesk')} icon={HelpCircle}>
+        <TabButton id="helpdesk-tab" active={activeTab === 'helpdesk'} onClick={() => setActiveTab('helpdesk')}>
           <span>Library Help Desk</span>
         </TabButton>
         {history.length > 0 && (
-          <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History}>
+          <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
             <span>Circulation History</span>
           </TabButton>
         )}

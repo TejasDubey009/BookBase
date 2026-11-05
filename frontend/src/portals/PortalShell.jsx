@@ -102,7 +102,7 @@ export default function PortalShell({ portal, children }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-12 selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-white flex flex-col font-sans">
       <Toast toast={toast} onDismiss={dismissToast} />
 
       <Navbar
@@ -116,7 +116,7 @@ export default function PortalShell({ portal, children }) {
         pendingRequestsCount={pendingRequestsCount}
       />
 
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-7 max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 max-w-6xl mx-auto w-full">
         {children({
           currentUser,
           isRestoringSession,

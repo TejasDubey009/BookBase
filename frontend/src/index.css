@@ -4,12 +4,26 @@
 
 @layer base {
   body {
-    background-color: #F8FAFC;
-    color: #1E293B;
+    background-color: #ffffff;
+    color: #444340;
+  }
+
+  /* Keyboard focus stays visible now that controls have no coloured fills to lean on */
+  :focus-visible {
+    outline: 2px solid #000000;
+    outline-offset: 2px;
   }
 }
 
-/* Custom scrollbar for consoles and modals */
+/* Tab rows scroll sideways on narrow screens without showing a bar under the tabs */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Thin scrollbars for wide tables and modals */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -18,10 +32,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #e5e5e5;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #737373;
 }
-

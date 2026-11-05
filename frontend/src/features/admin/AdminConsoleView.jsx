@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Barcode, BookOpen, BookPlus, Clock, CreditCard } from 'lucide-react';
 import LoadingState from '../../components/ui/LoadingState';
 import TabButton from '../../components/ui/TabButton';
 import AdminHeader from './AdminHeader';
@@ -44,30 +43,28 @@ export default function AdminConsoleView({
   const pendingRequestsCount = bookRequests.filter(r => r.status === 'Pending').length;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto">
       <AdminHeader onRefresh={fetchOverview} onOpenAddBook={onOpenAddBook} onResetDemo={onResetDemo} />
 
       <AdminKpiGrid kpis={kpis} requestsCount={bookRequests.length} pendingRequestsCount={pendingRequestsCount} fineRate={policy.fineRate} />
 
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
-        <TabButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')} icon={BookOpen}>
+      <div className="flex items-center gap-6 border-b border-line overflow-x-auto no-scrollbar">
+        <TabButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')}>
           <span>Book &amp; Borrowers Matrix (Grouped View)</span>
         </TabButton>
-        <TabButton active={activeTab === 'circulation'} onClick={() => setActiveTab('circulation')} icon={Barcode}>
+        <TabButton active={activeTab === 'circulation'} onClick={() => setActiveTab('circulation')}>
           <span>Active Circulation Loans ({allLoans.length})</span>
         </TabButton>
-        <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} icon={BookPlus}>
+        <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')}>
           <span>Student Book Requests ({bookRequests.length})</span>
           {pendingRequestsCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-400 text-amber-950 font-bold">
-              {pendingRequestsCount}
-            </span>
+            <span className="text-xs text-muted tabular-nums">{pendingRequestsCount}</span>
           )}
         </TabButton>
-        <TabButton active={activeTab === 'fines'} onClick={() => setActiveTab('fines')} icon={CreditCard}>
+        <TabButton active={activeTab === 'fines'} onClick={() => setActiveTab('fines')}>
           <span>Fines Ledger &amp; Settlement</span>
         </TabButton>
-        <TabButton active={activeTab === 'waitlist'} onClick={() => setActiveTab('waitlist')} icon={Clock}>
+        <TabButton active={activeTab === 'waitlist'} onClick={() => setActiveTab('waitlist')}>
           <span>Course Reservations ({waitlistQueue.length})</span>
         </TabButton>
       </div>

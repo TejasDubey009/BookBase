@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Library, LogIn, UserPlus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { api } from '../../api/bookbase';
+import TabButton from '../../components/ui/TabButton';
 import SignInPanel from './SignInPanel';
 import SignUpPanel from './SignUpPanel';
 
@@ -85,22 +86,19 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   const filteredUsers = demoUsers.filter(u => u.role === roleTab);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div 
-        className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-white w-full max-w-md rounded-lg border border-line shadow-soft overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-900/50">
+        <div className="p-6 pb-4 border-b border-line flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-900 text-white flex items-center justify-center shadow-md shadow-indigo-900/20">
-              <Library className="w-5 h-5 text-indigo-100" />
-            </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+              <h2 className="text-base font-medium text-ink">
                 {authMode === 'signup' ? 'Student Sign Up & Registration' : roleTab === 'admin' ? 'Library Staff Sign In' : 'Library Portal Sign In'}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-muted">
                 {authMode === 'signup' 
                   ? 'Get your enrollment credentials for on-premise & remote access' 
                   : 'Log in with your Enrollment Number and password'}
@@ -109,7 +107,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="p-1.5 rounded-full hover:bg-line text-muted hover:text-ink transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -118,31 +116,9 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
         {/* Auth Mode Tabs: students can also register. Staff accounts are not self-service. */}
         {roleTab === 'member' && (
           <div className="px-6 pt-4">
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setAuthMode('signin')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                  authMode === 'signin'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Sign In</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setAuthMode('signup')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                  authMode === 'signup'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Sign Up (New Student)</span>
-              </button>
+            <div className="flex items-center gap-6 border-b border-line">
+              <TabButton active={authMode === 'signin'} onClick={() => setAuthMode('signin')}>Sign In</TabButton>
+              <TabButton active={authMode === 'signup'} onClick={() => setAuthMode('signup')}>Sign Up (New Student)</TabButton>
             </div>
           </div>
         )}

@@ -1,4 +1,16 @@
-import { ArrowRight, BookOpen, BookPlus, Building2, Check, Clock } from 'lucide-react';
+import { BookPlus } from 'lucide-react';
+
+const PRIMARY_CLASSES = 'w-full py-1.5 px-3 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-50';
+const OUTLINE_CLASSES = 'py-1.5 px-3 rounded border border-field text-sm text-body hover:bg-shelf transition-colors';
+
+function StatusLines({ primary, secondary }) {
+  return (
+    <div className="text-xs">
+      <div className="text-body">{primary}</div>
+      <div className="mt-0.5 text-muted">{secondary}</div>
+    </div>
+  );
+}
 
 /** What a patron can do with a book from its card. This strictly adapts to the current portal. */
 export default function BookCardActions({
@@ -18,61 +30,49 @@ export default function BookCardActions({
   const isActionLoading = loadingActionId === book.book_id;
 
   return (
-    <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800">
-
-      {/* ========================================================= */}
-      {/* PORTAL 1: LIBRARY KIOSK (On-Premise: Borrow & Return ON)   */}
-      {/* ========================================================= */}
+    <div className="mt-auto w-full">
+      {/* The kiosk is the only place books can physically be borrowed or returned */}
       {portal === 'kiosk' && (
         <>
           {hasActiveLoan ? (
-            <div className="flex items-center gap-2">
-              <div className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold flex items-center justify-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Borrowed by You</span>
-              </div>
+            <div className="space-y-2">
+              <div className="text-xs text-body">Borrowed by You</div>
               <button
                 disabled={isActionLoading}
                 onClick={() => onReturn(uCtx.active_loan_id)}
-                className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
+                className={PRIMARY_CLASSES}
               >
                 {isActionLoading ? '...' : 'Return at Kiosk'}
               </button>
             </div>
           ) : waitlistPos ? (
-            <div className="w-full py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800 text-xs font-semibold flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span>Queue: <strong>Position #{waitlistPos}</strong></span>
-              </span>
-              <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.5 rounded">
-                {waitlistPos === 1 ? 'Next copy allocates' : 'Waitlisted'}
-              </span>
-            </div>
+            <StatusLines
+              primary={<>Queue: Position #{waitlistPos}</>}
+              secondary={waitlistPos === 1 ? 'Next copy allocates' : 'Waitlisted'}
+            />
           ) : isAvailable ? (
             <button
               disabled={isActionLoading}
               onClick={() => onBorrow(book.book_id)}
-              className="w-full py-2 px-3 rounded-xl bg-indigo-900 hover:bg-indigo-800 active:bg-indigo-950 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] shadow-xs disabled:opacity-50"
+              className={PRIMARY_CLASSES}
             >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{isActionLoading ? 'Processing...' : 'Borrow Book at Kiosk'}</span>
+              {isActionLoading ? 'Processing...' : 'Borrow Book at Kiosk'}
             </button>
           ) : (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-stretch gap-1.5">
               <button
                 disabled={isActionLoading}
                 onClick={() => onJoinWaitlist(book.book_id)}
-                className="flex-1 py-2 px-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-xs disabled:opacity-50"
+                className={PRIMARY_CLASSES}
               >
-                <Clock className="w-3.5 h-3.5" />
-                <span>Join Waitlist (#{book.waitlist_count + 1})</span>
+                Join Waitlist (#{book.waitlist_count + 1})
               </button>
               <button
                 type="button"
                 onClick={() => onRequestBook?.(book)}
                 title="Request extra curriculum copies"
-                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                aria-label="Request extra curriculum copies"
+                className="px-2 rounded border border-field text-body hover:bg-shelf transition-colors"
               >
                 <BookPlus className="w-4 h-4" />
               </button>
@@ -81,77 +81,34 @@ export default function BookCardActions({
         </>
       )}
 
-      {/* ========================================================= */}
-      {/* PORTAL 3: STUDENT REMOTE PORTAL (Strictly NO Borrow/Return) */}
-      {/* ========================================================= */}
+      {/* The student site can reserve and request, but never borrow or return */}
       {portal === 'student' && (
-        <div className="space-y-2">
+        <>
           {hasActiveLoan ? (
-            <div className="py-2 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 text-xs font-medium flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-bold">
-                <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span>Checked Out to You</span>
-              </span>
-              <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400">
-                Return at Kiosk
-              </span>
-            </div>
+            <StatusLines primary="Checked Out to You" secondary="Return at Kiosk" />
           ) : waitlistPos ? (
-            <div className="py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800 text-xs font-semibold flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                <span>Queue: <strong>#{waitlistPos}</strong></span>
-              </span>
-              <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono">
-                Auto-Dispatches
-              </span>
-            </div>
+            <StatusLines primary={<>Queue: #{waitlistPos}</>} secondary="Auto-Dispatches" />
           ) : isAvailable ? (
-            <div className="py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Available on Shelf</span>
-              </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                Borrow at Library Kiosk
-              </span>
-            </div>
+            <StatusLines primary="Available on Shelf" secondary="Borrow at Library Kiosk" />
           ) : (
-            <div className="flex items-center gap-1.5">
-              <div className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium text-center">
-                All Copies On Loan
-              </div>
-              <button
-                type="button"
-                onClick={() => onRequestBook?.(book)}
-                className="flex items-center gap-1 py-1.5 px-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
-              >
-                <BookPlus className="w-3.5 h-3.5" />
-                <span>Request Copy</span>
+            <div className="space-y-2">
+              <div className="text-xs text-body">All Copies On Loan</div>
+              <button type="button" onClick={() => onRequestBook?.(book)} className={`${OUTLINE_CLASSES} w-full`}>
+                Request Copy
               </button>
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* ========================================================= */}
-      {/* PORTAL 2: ADMIN PORTAL (Librarian Overview Action)        */}
-      {/* ========================================================= */}
       {portal === 'admin' && (
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-mono text-slate-500 dark:text-slate-400">
-            {book.total_copies} Barcoded Copies
-          </span>
-          <button
-            onClick={() => onSelect(book)}
-            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1"
-          >
-            <span>View Details</span>
-            <ArrowRight className="w-3 h-3" />
+        <div className="text-xs text-muted">
+          <div>{book.total_copies} Barcoded Copies</div>
+          <button onClick={() => onSelect(book)} className="mt-1 text-body hover:text-ink underline underline-offset-2 transition-colors">
+            View Details
           </button>
         </div>
       )}
-
     </div>
   );
 }

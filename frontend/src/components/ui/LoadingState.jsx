@@ -1,12 +1,10 @@
-import { Layers } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function LoadingState({ message }) {
   return (
     <div className="py-24 text-center">
-      <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 animate-spin mb-3">
-        <Layers className="w-5 h-5" />
-      </div>
-      <p className="text-sm text-slate-500 font-medium">{message}</p>
+      <Loader2 className="w-5 h-5 mx-auto mb-3 text-muted animate-spin" />
+      <p className="text-sm text-muted">{message}</p>
     </div>
   );
 }

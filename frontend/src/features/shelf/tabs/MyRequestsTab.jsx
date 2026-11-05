@@ -1,4 +1,3 @@
-import { BookPlus } from 'lucide-react';
 import RequestStatusBadge from '../../requests/RequestStatusBadge';
 
 export default function MyRequestsTab({ bookRequests, onOpenBookRequest }) {
@@ -6,27 +5,25 @@ export default function MyRequestsTab({ bookRequests, onOpenBookRequest }) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <BookPlus className="w-5 h-5 text-purple-600" />
+          <h2 className="text-base font-medium text-ink">
             My Curriculum Acquisition Requests
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="mt-0.5 text-sm text-muted">
             Track status updates on book requests submitted to library administration.
           </p>
         </div>
         <button
           onClick={onOpenBookRequest}
-          className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 self-start sm:self-auto"
+          className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium self-start sm:self-auto"
         >
-          <BookPlus className="w-4 h-4" />
           <span>Submit New Request</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
+      <div className="border border-line rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200/60">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-muted border-b border-line [&_th]:font-normal">
               <tr>
                 <th className="py-3 px-4">Requested Title &amp; Author</th>
                 <th className="py-3 px-4">Domain</th>
@@ -35,29 +32,29 @@ export default function MyRequestsTab({ bookRequests, onOpenBookRequest }) {
                 <th className="py-3 px-4 text-right">Acquisition Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-line text-body">
               {bookRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="py-10 text-center text-slate-400 font-sans">
+                  <td colSpan="5" className="py-10 text-center text-muted">
                     You have not submitted any book acquisition requests yet.
                   </td>
                 </tr>
               ) : (
                 bookRequests.map((req) => (
-                  <tr key={req.request_id} className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-sans">
-                      <div className="font-semibold text-slate-900">{req.title}</div>
-                      <div className="text-[11px] text-slate-500">by {req.author}</div>
+                  <tr key={req.request_id}>
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-ink">{req.title}</div>
+                      <div className="text-xs text-muted">by {req.author}</div>
                     </td>
-                    <td className="py-3 px-4 font-sans text-slate-600">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200">
+                    <td className="py-3 px-4 text-body">
+                      <span className="text-xs text-muted">
                         {req.category}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-500">
+                    <td className="py-3 px-4 text-muted">
                       {req.created_at?.slice(0, 10)}
                     </td>
-                    <td className="py-3 px-4 italic text-slate-500 max-w-xs truncate">
+                    <td className="py-3 px-4 text-muted max-w-xs truncate">
                       "{req.notes || 'None'}"
                     </td>
                     <td className="py-3 px-4 text-right">

@@ -1,5 +1,5 @@
 import LoadingState from '../../components/ui/LoadingState';
-import BentoBookCard from './BentoBookCard';
+import BookCard from './BookCard';
 import CatalogEmptyState from './CatalogEmptyState';
 import CatalogHeader from './CatalogHeader';
 import CatalogPortalNotice from './CatalogPortalNotice';
@@ -27,25 +27,25 @@ export default function CatalogView({
   onOpenBookRequest
 }) {
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <CatalogPortalNotice portal={portal} onOpenBookRequest={onOpenBookRequest} />
+    <div className="space-y-6">
+      <CatalogHeader
+        books={books}
+        currentUser={currentUser}
+        portal={portal}
+        onOpenAddBook={onOpenAddBook}
+        onOpenBookRequest={onOpenBookRequest}
+      >
+        <CatalogPortalNotice portal={portal} />
+      </CatalogHeader>
 
-      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
-        <CatalogHeader
-          books={books}
-          currentUser={currentUser}
-          portal={portal}
-          onOpenAddBook={onOpenAddBook}
-          onOpenBookRequest={onOpenBookRequest}
-        />
-        <CatalogSearchBar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          availabilityFilter={availabilityFilter}
-          setAvailabilityFilter={setAvailabilityFilter}
-        />
-        <CategoryChips selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
-      </div>
+      <CatalogSearchBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        availabilityFilter={availabilityFilter}
+        setAvailabilityFilter={setAvailabilityFilter}
+      />
+
+      <CategoryChips selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
 
       {loading ? (
         <LoadingState message="Loading library catalog..." />
@@ -57,9 +57,9 @@ export default function CatalogView({
           onOpenBookRequest={onOpenBookRequest}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pl-px pt-px">
           {books.map((book) => (
-            <BentoBookCard
+            <BookCard
               key={book.book_id}
               book={book}
               portal={portal}
