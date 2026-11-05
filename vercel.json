@@ -20,8 +20,38 @@
       "destination": "/api/index.py?__path__=openapi.json"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": ".*kiosk.*"
+        }
+      ],
+      "destination": "/kiosk/index.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": ".*student.*"
+        }
+      ],
+      "destination": "/student/index.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": ".*admin.*"
+        }
+      ],
+      "destination": "/admin/index.html"
+    },
+    {
+      "source": "/",
+      "destination": "/kiosk/index.html"
     }
   ]
 }

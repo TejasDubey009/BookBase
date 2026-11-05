@@ -1,12 +1,10 @@
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 
-from app.config import CORS_ORIGINS, FRONTEND_DIST
+from app.config import CORS_ORIGINS
 from app.core.errors import ServiceError
 from app.db.connection import get_raw_connection
 from app.db.seed import seed_database
@@ -71,13 +69,10 @@ def healthcheck():
     }
 
 
-# Mount Frontend static files if built (only when running locally; Vercel Edge CDN serves frontend/dist directly)
-if not os.getenv("VERCEL") and FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="static")
-else:
-    @app.get("/")
-    def root():
-        return {
-            "message": "Welcome to BookBase API. Access interactive documentation at /docs",
-            "api_prefix": "/api/v1"
-        }
+# The three portal sites are built and served separately (see frontend/portals.json)
+@app.get("/")
+def root():
+    return {
+        "message": "Welcome to BookBase API. Access interactive documentation at /docs",
+        "api_prefix": "/api/v1"
+    }

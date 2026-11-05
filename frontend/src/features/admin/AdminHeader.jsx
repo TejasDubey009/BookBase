@@ -6,7 +6,7 @@ export default function AdminHeader({ onRefresh, onOpenAddBook, onResetDemo }) {
       <div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-mono">
-            Portal 2 • Central Administration
+            Central Administration
           </span>
         </div>
         <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 mt-1 flex items-center gap-2">

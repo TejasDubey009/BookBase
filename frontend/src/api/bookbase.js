@@ -4,7 +4,8 @@
  */
 
 const BASE_URL = '/api/v1';
-const STORAGE_TOKEN = 'bb_token';
+// Each portal keeps its own sign-in, even when several are hosted on one domain
+const STORAGE_TOKEN = `bb_token_${import.meta.env.VITE_PORTAL}`;
 
 let onSessionExpired = () => {};
 

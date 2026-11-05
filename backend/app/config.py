@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import List
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 
 
 def _resolve_db_path() -> str:
@@ -46,9 +45,9 @@ def _resolve_secret_key() -> str:
 
 
 def _resolve_cors_origins() -> List[str]:
-    """The frontend is served from the API's own origin, so only the Vite dev server needs CORS."""
+    """Portal sites reach the API through their own address, so only direct calls to it use this."""
     configured = [origin.strip() for origin in os.getenv("BOOKBASE_CORS_ORIGINS", "").split(",")]
-    return [origin for origin in configured if origin] or ["http://localhost:5173", "http://127.0.0.1:5173"]
+    return [origin for origin in configured if origin] or [f"http://localhost:{port}" for port in (3001, 3002, 3003)]
 
 
 DB_PATH = _resolve_db_path()

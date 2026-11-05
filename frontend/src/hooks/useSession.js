@@ -1,67 +1,36 @@
 import { useEffect, useState } from 'react';
 import { api, clearAuthToken, getAuthToken, setAuthToken, setSessionExpiredHandler } from '../api/bookbase';
-import { PORTALS } from '../constants/portals';
 
-const STORAGE_PORTAL = 'bb_active_portal';
-const LEGACY_STORAGE_USER_ID = 'bb_user_id';
-
-function readInitialPortal() {
-  const hash = window.location.hash.replace('#', '');
-  if (PORTALS.includes(hash)) return hash;
-  return localStorage.getItem(STORAGE_PORTAL) || 'kiosk';
-}
+// Left behind in browsers by versions that served all three portals from one site
+const LEGACY_STORAGE_KEYS = ['bb_user_id', 'bb_token', 'bb_active_portal'];
 
 /**
- * Who is signed in and where they are: the active portal ('kiosk' | 'student' | 'admin'),
- * the current view, the signed-in user, and the librarian's pending-request count.
+ * Who is signed in on this portal's site, which screen they are on, and the librarian's
+ * pending-request count. Each site has one fixed portal and its own sign-in.
  */
-export function useSession({ showToast, lastEventTimestamp, notifyDataChanged }) {
-  const [activePortal, setActivePortalState] = useState(readInitialPortal);
+export function useSession({ portal, showToast, lastEventTimestamp, notifyDataChanged }) {
+  const homeView = portal === 'admin' ? 'admin-console' : 'catalog';
+
   const [currentUser, setCurrentUser] = useState(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(getAuthToken()));
   const [demoUsers, setDemoUsers] = useState([]);
-  const [currentView, setCurrentView] = useState('catalog');
+  const [currentView, setCurrentView] = useState(homeView);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-
-  // Keeps the portal in sync with localStorage and the URL hash
-  const setActivePortal = (portal) => {
-    setActivePortalState(portal);
-    localStorage.setItem(STORAGE_PORTAL, portal);
-    window.location.hash = portal;
-  };
-
-  // The admin portal is only for librarians; anyone else lands back on the kiosk
-  const enterPortalAs = (user) => {
-    if (activePortal !== 'admin') return;
-    if (user?.role === 'admin') {
-      setCurrentView('admin-console');
-    } else {
-      setActivePortal('kiosk');
-      setCurrentView('catalog');
-    }
-  };
 
   // Initial load: the quick-select accounts (empty unless demo mode is on), then the saved session.
   // Only the server can say who a stored token belongs to, so nothing else is kept in localStorage.
   useEffect(() => {
-    localStorage.removeItem(LEGACY_STORAGE_USER_ID);
+    LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
 
     api.getDemoUsers()
       .then(setDemoUsers)
       .catch((err) => console.error('Failed to load demo accounts:', err));
 
-    if (!getAuthToken()) {
-      enterPortalAs(null);
-      return;
-    }
+    if (!getAuthToken()) return;
     api.getCurrentUser()
-      .then((user) => {
-        setCurrentUser(user);
-        enterPortalAs(user);
-      })
-      .catch((err) => {
-        console.error('Failed to restore session:', err);
-        enterPortalAs(null);
-      });
+      .then(setCurrentUser)
+      .catch((err) => console.error('Failed to restore session:', err))
+      .finally(() => setIsRestoringSession(false));
   }, []);
 
   // The server rejected the stored token: it expired, or the demo database was reset
@@ -69,12 +38,11 @@ export function useSession({ showToast, lastEventTimestamp, notifyDataChanged })
     setSessionExpiredHandler(() => {
       setCurrentUser(null);
       setPendingRequestsCount(0);
-      if (activePortal === 'admin') setActivePortal('kiosk');
-      setCurrentView('catalog');
+      setCurrentView(homeView);
       showToast({ type: 'warning', message: 'Your session has ended. Please sign in again.' });
       notifyDataChanged();
     });
-  }, [activePortal]);
+  }, []);
 
   // Refresh the user's quota and fines, and the admin's pending-request count, after every change
   useEffect(() => {
@@ -100,16 +68,7 @@ export function useSession({ showToast, lastEventTimestamp, notifyDataChanged })
   const handleLoginSuccess = ({ token, user }) => {
     setAuthToken(token);
     setCurrentUser(user);
-    if (user.role === 'admin') {
-      setActivePortal('admin');
-      setCurrentView('admin-console');
-    } else {
-      // If student was on admin, redirect to the student portal
-      if (activePortal === 'admin') {
-        setActivePortal('student');
-      }
-      setCurrentView('catalog');
-    }
+    setCurrentView(homeView);
     notifyDataChanged();
   };
 
@@ -117,18 +76,14 @@ export function useSession({ showToast, lastEventTimestamp, notifyDataChanged })
     clearAuthToken();
     setCurrentUser(null);
     setPendingRequestsCount(0);
-    if (activePortal === 'admin') {
-      setActivePortal('kiosk');
-    }
-    setCurrentView('catalog');
+    setCurrentView(homeView);
     showToast({ type: 'success', message: 'You have been signed out.' });
     notifyDataChanged();
   };
 
   return {
-    activePortal,
-    setActivePortal,
     currentUser,
+    isRestoringSession,
     demoUsers,
     currentView,
     setCurrentView,

@@ -11,7 +11,7 @@ export default function CatalogPortalNotice({ portal, onOpenBookRequest }) {
           </div>
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-indigo-200">
-              Portal 1 • Central Library Kiosk (On-Premise Terminal)
+              Central Library Kiosk (On-Premise Terminal)
             </div>
             <div className="text-xs text-indigo-100 font-medium">
               Physical borrowing and return station. Click "Borrow Book at Kiosk" below to instantly check out an available copy.
@@ -38,7 +38,7 @@ export default function CatalogPortalNotice({ portal, onOpenBookRequest }) {
           </div>
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-emerald-200">
-              Portal 3 • Student Personal Portal (Remote Discovery Mode)
+              Student Personal Portal (Remote Discovery Mode)
             </div>
             <div className="text-xs text-emerald-100 font-medium">
               Remote catalogue inquiry. Checkout and returns are restricted to the Central Library Kiosk. You may submit book procurement requests below.

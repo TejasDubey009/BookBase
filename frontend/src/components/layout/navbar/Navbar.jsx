@@ -1,11 +1,11 @@
+import { getPortalMeta } from '../../../constants/portals';
 import PortalBrand from './PortalBrand';
 import PortalNav from './PortalNav';
-import PortalSwitcher from './PortalSwitcher';
+import PortalStrip from './PortalStrip';
 import ProfileMenu from './ProfileMenu';
 
 export default function Navbar({
   activePortal,
-  setActivePortal,
   currentView,
   setCurrentView,
   currentUser,
@@ -14,19 +14,6 @@ export default function Navbar({
   onOpenBookRequest,
   pendingRequestsCount = 0
 }) {
-  const handlePortalSwitch = (portal) => {
-    setActivePortal(portal);
-    if (portal === 'admin') {
-      if (currentUser?.role !== 'admin') {
-        onOpenAuth();
-        return;
-      }
-      setCurrentView('admin-console');
-    } else if (currentView === 'admin-console') {
-      setCurrentView('catalog');
-    }
-  };
-
   const goHome = () => {
     if (activePortal === 'admin') setCurrentView('admin-console');
     else setCurrentView('catalog');
@@ -34,7 +21,7 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs transition-all">
-      <PortalSwitcher activePortal={activePortal} onSwitch={handlePortalSwitch} pendingRequestsCount={pendingRequestsCount} />
+      <PortalStrip activePortal={activePortal} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-4">
         <PortalBrand activePortal={activePortal} onClick={goHome} />
@@ -44,13 +31,14 @@ export default function Navbar({
           setCurrentView={setCurrentView}
           currentUser={currentUser}
           onOpenBookRequest={onOpenBookRequest}
+          pendingRequestsCount={pendingRequestsCount}
         />
         <ProfileMenu
           currentUser={currentUser}
-          setActivePortal={setActivePortal}
           setCurrentView={setCurrentView}
           onOpenAuth={onOpenAuth}
           onLogout={onLogout}
+          signInLabel={getPortalMeta(activePortal).signInLabel}
         />
       </div>
     </header>

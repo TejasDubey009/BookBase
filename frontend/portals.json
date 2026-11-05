@@ -1,0 +1,5 @@
+{
+  "kiosk": { "port": 3001, "title": "Library Kiosk", "app": "KioskApp" },
+  "student": { "port": 3002, "title": "Student Portal", "app": "StudentApp" },
+  "admin": { "port": 3003, "title": "Admin Portal", "app": "AdminApp" }
+}

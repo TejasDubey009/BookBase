@@ -9,7 +9,7 @@ function getInitials(name) {
 }
 
 /** The signed-in user's capsule and dropdown, or the login button when signed out. */
-export default function ProfileMenu({ currentUser, setActivePortal, setCurrentView, onOpenAuth, onLogout }) {
+export default function ProfileMenu({ currentUser, setCurrentView, onOpenAuth, onLogout, signInLabel }) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   const isAdmin = currentUser?.role === 'admin';
@@ -109,7 +109,6 @@ export default function ProfileMenu({ currentUser, setActivePortal, setCurrentVi
                 {isAdmin && (
                   <button
                     onClick={() => {
-                      setActivePortal('admin');
                       setCurrentView('admin-console');
                       setProfileDropdownOpen(false);
                     }}
@@ -140,7 +139,7 @@ export default function ProfileMenu({ currentUser, setActivePortal, setCurrentVi
           className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors"
         >
           <LogIn className="w-4 h-4" />
-          <span>Login with Roll No</span>
+          <span>{signInLabel}</span>
         </button>
       )}
     </div>

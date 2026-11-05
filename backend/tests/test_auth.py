@@ -207,8 +207,8 @@ def test_demo_users_passwords_actually_sign_in(client, monkeypatch, account):
 
 
 def test_cors_only_answers_configured_origins(client):
-    allowed = client.get(f"{API}/health", headers={"Origin": "http://localhost:5173"})
-    assert allowed.headers["access-control-allow-origin"] == "http://localhost:5173"
+    allowed = client.get(f"{API}/health", headers={"Origin": "http://localhost:3001"})
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:3001"
     assert "access-control-allow-credentials" not in allowed.headers
 
     other = client.get(f"{API}/health", headers={"Origin": "https://evil.example"})
@@ -218,7 +218,7 @@ def test_cors_only_answers_configured_origins(client):
 def test_cors_preflight_rejects_other_origins(client):
     preflight = {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization"}
     assert client.options(f"{API}/auth/login", headers={"Origin": "https://evil.example", **preflight}).status_code == 400
-    assert client.options(f"{API}/auth/login", headers={"Origin": "http://localhost:5173", **preflight}).status_code == 200
+    assert client.options(f"{API}/auth/login", headers={"Origin": "http://localhost:3001", **preflight}).status_code == 200
 
 
 def test_vercel_refuses_to_start_without_a_signing_key(monkeypatch):

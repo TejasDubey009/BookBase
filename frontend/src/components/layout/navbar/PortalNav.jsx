@@ -88,12 +88,17 @@ function StudentNav({ currentView, setCurrentView, currentUser, onOpenBookReques
   );
 }
 
-function AdminNav({ currentView, setCurrentView }) {
+function AdminNav({ currentView, setCurrentView, pendingRequestsCount }) {
   return (
     <>
       <NavTab active={currentView === 'admin-console'} onClick={() => setCurrentView('admin-console')}>
         <ShieldCheck className="w-4 h-4 text-indigo-600" />
         <span>Circulation Desk</span>
+        {pendingRequestsCount > 0 && (
+          <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] bg-amber-400 text-amber-950 font-bold">
+            {pendingRequestsCount}
+          </span>
+        )}
       </NavTab>
 
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
@@ -105,7 +110,10 @@ function AdminNav({ currentView, setCurrentView }) {
 }
 
 /** The centre tabs, which change with the active portal. */
-export default function PortalNav({ activePortal, currentView, setCurrentView, currentUser, onOpenBookRequest }) {
+export default function PortalNav({ activePortal, currentView, setCurrentView, currentUser, onOpenBookRequest, pendingRequestsCount }) {
+  // Every admin screen needs a librarian account, so signed-out visitors get no tabs at all
+  if (activePortal === 'admin' && currentUser?.role !== 'admin') return null;
+
   return (
     <nav className="hidden md:flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/70 text-xs font-semibold">
       {activePortal === 'kiosk' && (
@@ -115,7 +123,7 @@ export default function PortalNav({ activePortal, currentView, setCurrentView, c
         <StudentNav currentView={currentView} setCurrentView={setCurrentView} currentUser={currentUser} onOpenBookRequest={onOpenBookRequest} />
       )}
       {activePortal === 'admin' && (
-        <AdminNav currentView={currentView} setCurrentView={setCurrentView} />
+        <AdminNav currentView={currentView} setCurrentView={setCurrentView} pendingRequestsCount={pendingRequestsCount} />
       )}
     </nav>
   );

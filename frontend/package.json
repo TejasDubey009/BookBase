@@ -4,9 +4,15 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "cd .. && python3 run.py",
+    "dev:kiosk": "vite --mode kiosk",
+    "dev:student": "vite --mode student",
+    "dev:admin": "vite --mode admin",
+    "clean": "node -e \"import('node:fs').then((fs) => fs.rmSync('dist', { recursive: true, force: true }))\"",
+    "build": "npm run clean && vite build --mode kiosk && vite build --mode student && vite build --mode admin",
+    "preview:kiosk": "vite preview --mode kiosk",
+    "preview:student": "vite preview --mode student",
+    "preview:admin": "vite preview --mode admin"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -25,4 +31,3 @@
     "vite": "^6.0.7"
   }
 }
-

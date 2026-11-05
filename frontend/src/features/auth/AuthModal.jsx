@@ -4,9 +4,8 @@ import { api } from '../../api/bookbase';
 import SignInPanel from './SignInPanel';
 import SignUpPanel from './SignUpPanel';
 
-export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, showToast, initialRole = 'member' }) {
+export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, showToast, role: roleTab = 'member' }) {
   const [authMode, setAuthMode] = useState('signin'); // 'signin' or 'signup'
-  const [roleTab, setRoleTab] = useState(initialRole); // 'member' or 'admin'
   
   // Sign In fields
   const [identifier, setIdentifier] = useState(''); // Enrollment Number or Email
@@ -32,11 +31,6 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   }, [demoUsers]);
 
   if (!isOpen) return null;
-
-  const handleRoleTabChange = (role) => {
-    setRoleTab(role);
-    resetSignInFields(role);
-  };
 
   const handleQuickSelect = (u) => {
     setIdentifier(u.enrollment_no);
@@ -104,7 +98,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                {authMode === 'signup' ? 'Student Sign Up & Registration' : 'Library Portal Sign In'}
+                {authMode === 'signup' ? 'Student Sign Up & Registration' : roleTab === 'admin' ? 'Library Staff Sign In' : 'Library Portal Sign In'}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {authMode === 'signup' 
@@ -121,40 +115,41 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
           </button>
         </div>
 
-        {/* Auth Mode Tabs: Sign In vs Sign Up */}
-        <div className="px-6 pt-4">
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setAuthMode('signin')}
-              className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                authMode === 'signin'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Sign In</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuthMode('signup')}
-              className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                authMode === 'signup'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Sign Up (New Student)</span>
-            </button>
+        {/* Auth Mode Tabs: students can also register. Staff accounts are not self-service. */}
+        {roleTab === 'member' && (
+          <div className="px-6 pt-4">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAuthMode('signin')}
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  authMode === 'signin'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('signup')}
+                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                  authMode === 'signup'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-200 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Sign Up (New Student)</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {authMode === 'signin' ? (
           <SignInPanel
             roleTab={roleTab}
-            handleRoleTabChange={handleRoleTabChange}
             filteredUsers={filteredUsers}
             handleQuickSelect={handleQuickSelect}
             handleManualLogin={handleManualLogin}

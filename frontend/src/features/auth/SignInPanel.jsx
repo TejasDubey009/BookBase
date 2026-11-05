@@ -1,8 +1,7 @@
-import { ArrowRight, Eye, EyeOff, IdCard, Lock, ShieldCheck, UserCheck } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, IdCard, Lock } from 'lucide-react';
 
 export default function SignInPanel({
   roleTab,
-  handleRoleTabChange,
   filteredUsers,
   handleQuickSelect,
   handleManualLogin,
@@ -16,36 +15,6 @@ export default function SignInPanel({
 }) {
   return (
     <div className="p-6 pt-3 space-y-4">
-      {/* Role Tabs */}
-      <div>
-        <div className="flex bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-0.5 rounded-xl text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => handleRoleTabChange('member')}
-            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-              roleTab === 'member'
-                ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>Student Patron</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRoleTabChange('admin')}
-            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-              roleTab === 'admin'
-                ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Library Staff</span>
-          </button>
-        </div>
-      </div>
-
       {/* Quick Demo Account Selector (only when the server has demo mode on) */}
       {filteredUsers.length > 0 && (
         <div>

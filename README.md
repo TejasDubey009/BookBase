@@ -149,17 +149,39 @@ erDiagram
 
 ## 🚀 Quick Start (Runs in 1 Minute)
 
-### Local Launch (FastAPI + React)
+### Local Launch
+
+Install the backend's dependencies once, then start everything. This needs Python and Node.js.
 
 ```bash
-# 1. Run the system
-./start.sh
-# or:
+pip install -r backend/requirements.txt
+```
+
+```bash
 python3 run.py
 ```
 
-- **Web Application UI:** [http://127.0.0.1:8001](http://127.0.0.1:8001)
-- **FastAPI Interactive Swagger Docs:** [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
+The three portals are separate websites, each with its own address and its own sign-in. They share one API and one database, so a book borrowed at the kiosk shows up straight away in the admin portal.
+
+| Site | Address | For | Signs in |
+| :--- | :--- | :--- | :--- |
+| **Library Kiosk** | [http://localhost:3001](http://localhost:3001) | Borrowing and returning at the library | Students |
+| **Student Portal** | [http://localhost:3002](http://localhost:3002) | Browsing, due dates and requests from anywhere | Students |
+| **Admin Portal** | [http://localhost:3003](http://localhost:3003) | Circulation desk, fines and catalog management | Library staff |
+| **REST API docs** | [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) | Interactive API reference | Not applicable |
+
+Ports are set in `frontend/portals.json`. To work on one site, run the API and then `npm run dev:kiosk`, `dev:student` or `dev:admin` in `frontend/`.
+
+### Deploying to Vercel
+
+One Vercel project serves all three sites and the API. `npm run build` produces `frontend/dist/kiosk`, `student` and `admin`.
+
+1. Set `BOOKBASE_SECRET_KEY` in the project's environment variables (see Configuration below).
+2. In the project's **Settings → Domains**, add one domain per portal with `kiosk`, `student` or `admin` in its name, such as `bookbase-kiosk.vercel.app` or `admin.your-college.edu`. `vercel.json` picks the site from that word.
+
+Without those domains, the same sites are at `/kiosk/`, `/student/` and `/admin/` on the project's main address, which opens the kiosk.
+
+> **Data on Vercel is not durable.** The API's SQLite file lives in `/tmp`, which belongs to a single function instance and is discarded with it. Changes can disappear, and instances may not see each other's changes, so the sites are not reliably in sync there. Real use needs a hosted database.
 
 ### Configuration
 
@@ -168,7 +190,7 @@ python3 run.py
 | `BOOKBASE_SECRET_KEY` | **Required on Vercel** | Signs session tokens, and must be at least 32 characters. The API refuses to start on Vercel without it. `run.py` generates one for each run, so local sessions end when you restart it. |
 | `BOOKBASE_DEMO_MODE` | Optional | `1` lists the seeded accounts and their passwords in the sign-in modal. `run.py` turns this on. Everywhere else it is off unless you set it. |
 | `BOOKBASE_TOKEN_TTL_MINUTES` | Optional | How long a session lasts. Defaults to 480 (8 hours). |
-| `BOOKBASE_CORS_ORIGINS` | Optional | Comma-separated origins allowed to call the API from another site. Defaults to the Vite dev server. The deployed frontend shares the API's origin, so it needs nothing here. |
+| `BOOKBASE_CORS_ORIGINS` | Optional | Comma-separated origins allowed to call the API directly from another site. Defaults to the three local portal addresses. Each portal reaches the API through its own address, locally and on Vercel, so it needs nothing here. |
 
 Generate a signing key with:
 
@@ -202,13 +224,16 @@ BookBase/
 │       ├── schemas/           # Pydantic request/response models, one file per domain
 │       ├── db/                # Connections, transactions, schema, shared SQL, audit log, seed data
 │       └── core/              # Cross-cutting helpers: errors, clock, password hashing, session tokens, auth dependencies
-├── frontend/src/
-│   ├── App.jsx                # Composes the hooks, views and modals
-│   ├── api/                   # BookBase REST client and OpenLibrary lookup
-│   ├── hooks/                 # App-wide state: session, catalog, circulation actions, toasts
-│   ├── constants/             # Book categories and portal metadata
-│   ├── components/            # Shared UI: layout (navbar, footer), ui (tabs, toast), books (cover)
-│   └── features/              # One folder per area: admin, auth, catalog, requests, shelf
+├── frontend/
+│   ├── portals.json           # The three sites: each one's port, title and app
+│   ├── vite.config.js         # Serves or builds one site, chosen with --mode kiosk|student|admin
+│   └── src/
+│       ├── portals/           # KioskApp, StudentApp, AdminApp, and the PortalShell they share
+│       ├── api/               # BookBase REST client and OpenLibrary lookup
+│       ├── hooks/             # Shared state: session, catalog, circulation actions, toasts
+│       ├── constants/         # Book categories and portal metadata
+│       ├── components/        # Shared UI: layout (navbar, footer), ui (tabs, toast), books (cover)
+│       └── features/          # One folder per area: admin, auth, catalog, requests, shelf
 └── database/schema_postgres.sql   # PostgreSQL schema (the app itself runs on SQLite)
 ```
 
@@ -221,6 +246,7 @@ BookBase/
 | A lending rule (fine rate, quota, loan length) | `config.py`, then `services/circulation_service.py` |
 | An API error | Raise a class from `core/errors.py` in a service; `main.py` turns it into the HTTP response |
 | SQL used by more than one service | `db/queries.py` (SQL used once stays in its service) |
+| A screen on one portal | Build it in `features/`, then add it to that portal's app in `frontend/src/portals/`. Only screens a portal's app imports end up in that site's build |
 | A tab in the librarian or student view | `features/admin/tabs/` or `features/shelf/tabs/`, registered in that area's view |
 
 Tabs unmount when you switch away from them, so state that must survive a tab switch (such as the matrix search) belongs in the parent view or its hook, not in the tab. Avoid naming a folder `lib/`, `build/` or `dist/`: `.gitignore` excludes them at any depth.
