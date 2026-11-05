@@ -42,6 +42,7 @@ class WaitlistEntryOut(BaseModel):
     user_id: int
     user_name: str
     user_email: str
+    user_enrollment_no: Optional[str] = None
     queue_position: int
     status: str
     created_at: str
@@ -87,3 +88,5 @@ class LoanOut(BaseModel):
     issued_via: str
     is_overdue: bool
     days_remaining: int
+    days_overdue: int
+    accrued_fine: float  # Active loan: what returning it now would charge. Returned loan: what was charged.

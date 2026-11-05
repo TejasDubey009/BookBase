@@ -4,7 +4,7 @@ import sqlite3
 from typing import List, Optional
 
 from app.core.clock import utc_now
-from app.core.errors import NotFoundError
+from app.core.errors import BadRequestError, NotFoundError
 from app.db.audit import log_audit
 from app.db.queries import BOOK_REQUEST_DETAILS_SELECT, LOAN_DETAILS_SELECT, QUEUE_POSITION_SUBQUERY
 from app.db.seed import seed_database
@@ -14,9 +14,11 @@ from app.schemas.admin import (
     BookBorrowerOut,
     GroupedBookBorrowersOut,
     SettleFineRequest,
+    StudentFineOut,
 )
 from app.schemas.circulation import LoanOut, WaitlistEntryOut
-from app.services.mappers import enrollment_or_fallback, to_book_request_out, to_loan_out
+from app.services.circulation_service import calculate_overdue_fine
+from app.services.mappers import enrollment_or_fallback, to_active_loan_out, to_book_request_out
 
 RECENT_AUDIT_LOG_LIMIT = 30
 
@@ -48,6 +50,7 @@ def _book_borrowers(cursor: sqlite3.Cursor, book_id: int, now: datetime.datetime
     borrowers = []
     for row in cursor.fetchall():
         due_dt = datetime.datetime.fromisoformat(row["due_date"])
+        fine_assessed = float(row["fine_assessed"] or 0.0)
         borrowers.append(
             BookBorrowerOut(
                 loan_id=row["loan_id"],
@@ -62,7 +65,8 @@ def _book_borrowers(cursor: sqlite3.Cursor, book_id: int, now: datetime.datetime
                 due_date=row["due_date"],
                 return_date=row["return_date"],
                 status=_borrower_status(row["return_date"], due_dt, now),
-                fine_assessed=float(row["fine_assessed"] or 0.0),
+                fine_assessed=fine_assessed,
+                accrued_fine=fine_assessed if row["return_date"] else calculate_overdue_fine(due_dt, now),
                 days_remaining=(due_dt - now).days
             )
         )
@@ -78,7 +82,12 @@ def build_grouped_books(db: sqlite3.Connection, search: Optional[str] = None) ->
             b.book_id, b.isbn, b.title, b.author, b.category, b.published_year, b.cover_url, b.card_tint,
             COUNT(bc.copy_id) as total_copies,
             SUM(CASE WHEN bc.status = 'Available' THEN 1 ELSE 0 END) as available_copies,
-            SUM(CASE WHEN bc.status = 'Issued' THEN 1 ELSE 0 END) as active_loans_count
+            SUM(CASE WHEN bc.status = 'Issued' THEN 1 ELSE 0 END) as active_loans_count,
+            (
+                SELECT COUNT(*)
+                FROM waitlist_reservations wr
+                WHERE wr.book_id = b.book_id AND wr.status = 'Waiting'
+            ) as waitlist_count
         FROM books b
         LEFT JOIN book_copies bc ON b.book_id = bc.book_id
     """
@@ -112,6 +121,7 @@ def build_grouped_books(db: sqlite3.Connection, search: Optional[str] = None) ->
             total_copies=b["total_copies"] or 0,
             available_copies=b["available_copies"] or 0,
             active_loans_count=b["active_loans_count"] or 0,
+            waitlist_count=b["waitlist_count"],
             borrowers=_book_borrowers(cursor, b["book_id"], now)
         ) for b in cursor.fetchall()
     ]
@@ -136,11 +146,7 @@ def _kpis(cursor: sqlite3.Cursor) -> AdminKPIs:
 
 def _active_loans(cursor: sqlite3.Cursor, now: datetime.datetime) -> List[LoanOut]:
     cursor.execute(f"{LOAN_DETAILS_SELECT} WHERE cl.return_date IS NULL ORDER BY cl.due_date ASC")
-    loans = []
-    for row in cursor.fetchall():
-        due_dt = datetime.datetime.fromisoformat(row["due_date"])
-        loans.append(to_loan_out(row, is_overdue=now > due_dt, days_remaining=(due_dt - now).days))
-    return loans
+    return [to_active_loan_out(row, now) for row in cursor.fetchall()]
 
 
 def _waitlist_queue(cursor: sqlite3.Cursor) -> List[WaitlistEntryOut]:
@@ -149,7 +155,7 @@ def _waitlist_queue(cursor: sqlite3.Cursor) -> List[WaitlistEntryOut]:
         SELECT
             wr.reservation_id, wr.book_id, wr.user_id, wr.status, wr.created_at, wr.fulfilled_at,
             b.title as book_title,
-            u.full_name as user_name, u.email as user_email,
+            u.full_name as user_name, u.email as user_email, u.enrollment_no as user_enrollment_no,
             {QUEUE_POSITION_SUBQUERY} as queue_pos
         FROM waitlist_reservations wr
         JOIN books b ON wr.book_id = b.book_id
@@ -166,10 +172,32 @@ def _waitlist_queue(cursor: sqlite3.Cursor) -> List[WaitlistEntryOut]:
             user_id=row["user_id"],
             user_name=row["user_name"],
             user_email=row["user_email"],
+            user_enrollment_no=enrollment_or_fallback(row["user_enrollment_no"], row["user_id"]),
             queue_position=row["queue_pos"],
             status=row["status"],
             created_at=row["created_at"],
             fulfilled_at=row["fulfilled_at"]
+        ) for row in cursor.fetchall()
+    ]
+
+
+def _student_fines(cursor: sqlite3.Cursor) -> List[StudentFineOut]:
+    """Every student, plus anyone else with a balance, so the ledger adds up to the total_fines KPI."""
+    cursor.execute(
+        """
+        SELECT user_id, full_name, enrollment_no, email, outstanding_fines
+        FROM users
+        WHERE role = 'member' OR outstanding_fines > 0
+        ORDER BY outstanding_fines DESC, full_name ASC
+        """
+    )
+    return [
+        StudentFineOut(
+            user_id=row["user_id"],
+            full_name=row["full_name"],
+            enrollment_no=enrollment_or_fallback(row["enrollment_no"], row["user_id"]),
+            email=row["email"],
+            outstanding_fines=float(row["outstanding_fines"])
         ) for row in cursor.fetchall()
     ]
 
@@ -204,11 +232,16 @@ def get_overview(db: sqlite3.Connection) -> AdminOverviewOut:
         waitlist_queue=waitlist_queue,
         book_requests=book_requests,
         grouped_books=grouped_books,
+        student_fines=_student_fines(cursor),
         recent_audit_logs=recent_logs
     )
 
 
 def settle_fine(db: sqlite3.Connection, payload: SettleFineRequest) -> dict:
+    # Written as "not > 0" so that NaN, which compares false to everything, is rejected too
+    if payload.amount_settled is not None and not payload.amount_settled > 0:
+        raise BadRequestError("Settlement amount must be greater than zero.")
+
     cursor = db.cursor()
     cursor.execute(
         "SELECT user_id, full_name, enrollment_no, outstanding_fines FROM users WHERE user_id = ?",

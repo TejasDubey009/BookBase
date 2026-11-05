@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 
 from app.db.connection import get_db
-from app.schemas.books import BookCreateRequest, BookOut, CopyCreateRequest
+from app.schemas.books import BookCreateRequest, BookDetailOut, BookOut, CopyCreateRequest
 from app.services import catalog_service
 
 router = APIRouter(prefix="/books", tags=["Catalog & Inventory"])
@@ -21,7 +21,7 @@ def list_books(
     return catalog_service.list_books(db, search=search, category=category, availability=availability, user_id=user_id)
 
 
-@router.get("/{book_id}", response_model=BookOut)
+@router.get("/{book_id}", response_model=BookDetailOut)
 def get_book_detail(
     book_id: int,
     user_id: Optional[int] = Query(None),

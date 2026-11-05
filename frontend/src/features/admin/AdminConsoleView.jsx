@@ -92,7 +92,7 @@ export default function AdminConsoleView({
         />
       )}
       {activeTab === 'requests' && <RequestsTab bookRequests={bookRequests} onUpdateStatus={updateRequestStatus} />}
-      {activeTab === 'fines' && <FinesTab kpis={kpis} onSettleFine={settleFine} />}
+      {activeTab === 'fines' && <FinesTab kpis={kpis} students={data?.student_fines || []} onSettleFine={settleFine} />}
       {activeTab === 'waitlist' && <WaitlistTab waitlistQueue={waitlistQueue} />}
     </div>
   );

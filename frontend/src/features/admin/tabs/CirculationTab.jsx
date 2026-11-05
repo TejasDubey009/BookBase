@@ -74,7 +74,7 @@ export default function CirculationTab({ allLoans, filterOverdue, setFilterOverd
                       <div className="font-medium text-slate-900 flex items-center gap-1.5">
                         <span>{loan.user_name}</span>
                         <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                          {loan.enrollment_no || `ID #${loan.user_id}`}
+                          {loan.user_enrollment_no}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 font-mono">{loan.user_email}</div>
@@ -107,7 +107,7 @@ export default function CirculationTab({ allLoans, filterOverdue, setFilterOverd
                       {isOverdue ? (
                         <div className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
                           <AlertTriangle className="w-3 h-3 text-rose-600" />
-                          Overdue ({Math.abs(loan.days_remaining)}d) • ₹{Math.abs(loan.days_remaining * 2).toFixed(2)} Fine
+                          Overdue ({loan.days_overdue}d) • ₹{loan.accrued_fine.toFixed(2)} Fine
                         </div>
                       ) : (
                         <div className="text-xs text-slate-600">

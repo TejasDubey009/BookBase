@@ -56,9 +56,9 @@ export default function CopiesTable({ book }) {
                       )}
                     </td>
                     <td className="py-2.5 px-4 font-sans text-slate-600">
-                      {isIssued && copy.current_loan ? (
+                      {isIssued && copy.current_due_date ? (
                         <span className="text-[11px]">
-                          Due: {copy.current_loan.due_date?.slice(0, 10)}
+                          {copy.current_borrower_name} • Due: {copy.current_due_date.slice(0, 10)}
                         </span>
                       ) : (
                         <span className="text-slate-400 italic text-[11px]">Ready on shelf</span>

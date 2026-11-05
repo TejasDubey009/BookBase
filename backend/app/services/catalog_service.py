@@ -6,7 +6,15 @@ from app.core.clock import utc_now_iso
 from app.core.errors import BadRequestError, NotFoundError
 from app.db.audit import log_audit
 from app.db.queries import QUEUE_POSITION_SUBQUERY
-from app.schemas.books import BookCreateRequest, BookOut, CopyCreateRequest, CopyOut, UserContext
+from app.schemas.books import (
+    BookCreateRequest,
+    BookDetailOut,
+    BookOut,
+    BookWaitlistEntryOut,
+    CopyCreateRequest,
+    CopyOut,
+    UserContext,
+)
 
 _BOOK_WITH_COUNTS_SELECT = """
     SELECT
@@ -39,6 +47,14 @@ _USER_WAITLIST_SELECT = f"""
     SELECT wr.book_id, wr.reservation_id, {QUEUE_POSITION_SUBQUERY} as queue_pos
     FROM waitlist_reservations wr
     WHERE wr.user_id = ? AND wr.status = 'Waiting'
+"""
+
+_BOOK_WAITLIST_SELECT = f"""
+    SELECT wr.reservation_id, wr.user_id, wr.created_at, u.full_name as user_name, {QUEUE_POSITION_SUBQUERY} as queue_pos
+    FROM waitlist_reservations wr
+    JOIN users u ON wr.user_id = u.user_id
+    WHERE wr.book_id = ? AND wr.status = 'Waiting'
+    ORDER BY wr.created_at ASC, wr.reservation_id ASC
 """
 
 
@@ -152,7 +168,20 @@ def list_books(
     return results
 
 
-def get_book_detail(db: sqlite3.Connection, book_id: int, user_id: Optional[int] = None) -> BookOut:
+def _book_waitlist(cursor: sqlite3.Cursor, book_id: int) -> List[BookWaitlistEntryOut]:
+    cursor.execute(_BOOK_WAITLIST_SELECT, (book_id,))
+    return [
+        BookWaitlistEntryOut(
+            reservation_id=row["reservation_id"],
+            user_id=row["user_id"],
+            user_name=row["user_name"],
+            queue_position=row["queue_pos"],
+            created_at=row["created_at"]
+        ) for row in cursor.fetchall()
+    ]
+
+
+def get_book_detail(db: sqlite3.Connection, book_id: int, user_id: Optional[int] = None) -> BookDetailOut:
     cursor = db.cursor()
     cursor.execute(f"{_BOOK_WITH_COUNTS_SELECT} WHERE b.book_id = ? GROUP BY b.book_id", (book_id,))
     book_row = cursor.fetchone()
@@ -170,7 +199,8 @@ def get_book_detail(db: sqlite3.Connection, book_id: int, user_id: Optional[int]
         waitlist_entry = cursor.fetchone()
         user_context = _to_user_context(active_loan, waitlist_entry)
 
-    return _to_book_out(book_row, copies, user_context)
+    book = _to_book_out(book_row, copies, user_context)
+    return BookDetailOut(**book.model_dump(), waitlist_entries=_book_waitlist(cursor, book_id))
 
 
 def create_book(db: sqlite3.Connection, payload: BookCreateRequest) -> dict:
