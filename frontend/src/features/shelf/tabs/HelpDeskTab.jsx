@@ -24,15 +24,11 @@ export default function HelpDeskTab({ policy }) {
             <div className="space-y-1.5 text-xs text-slate-600">
               <div className="flex justify-between">
                 <span className="font-medium">Monday – Friday:</span>
-                <span className="font-mono font-bold text-slate-800">8:30 AM – 8:00 PM</span>
+                <span className="font-mono font-bold text-slate-800">8:00 AM – 8:00 PM</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-medium">Saturday:</span>
-                <span className="font-mono font-bold text-slate-800">9:00 AM – 5:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Sunday &amp; Holidays:</span>
-                <span className="text-rose-600 font-semibold">Closed</span>
+                <span className="font-medium">Saturday – Sunday:</span>
+                <span className="font-mono font-bold text-slate-800">9:00 AM – 5:30 PM</span>
               </div>
             </div>
             <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500">
@@ -74,15 +70,15 @@ export default function HelpDeskTab({ policy }) {
             <div className="space-y-2 text-xs text-slate-600">
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-mono">library@bookbase.in</span>
+                <span className="font-mono">library.desk@bookbase.in</span>
               </div>
               <div className="flex items-center gap-2">
                 <PhoneCall className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-mono">+91 0413 2655 000</span>
+                <span className="font-mono">+91 80 2345 6789</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>2nd Floor, Central Academic Block</span>
+                <span>Central Library Wing</span>
               </div>
             </div>
             <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500">
