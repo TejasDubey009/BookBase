@@ -80,11 +80,11 @@ function LoanCard({ loan, portal, onSelectBook, onReturnBook, fetchDashboard, lo
             <div>
               <div className="font-bold">
                 {isOverdue
-                  ? `Overdue by ${Math.abs(loan.days_remaining)} Days`
+                  ? `Overdue by ${loan.days_overdue} Days`
                   : `Due in ${loan.days_remaining} Days`}
               </div>
               <div className="text-[10px] opacity-80 font-mono">
-                {isOverdue ? `Accrued fine: ₹${(Math.abs(loan.days_remaining) * 2).toFixed(2)}` : 'On schedule'}
+                {isOverdue ? `Accrued fine: ₹${loan.accrued_fine.toFixed(2)}` : 'On schedule'}
               </div>
             </div>
           </div>

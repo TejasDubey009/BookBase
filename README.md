@@ -227,6 +227,7 @@ All frontend operations strictly communicate through these endpoints:
 ### Catalog & 3NF Inventory
 - `GET /api/v1/books?search=&category=&availability=&user_id=` — Multi-table aggregated search & availability
 - `GET /api/v1/books/{book_id}?user_id=` — Full book specifications, copies table, and FIFO queue lineup
+  - `waitlist_entries[]`: `reservation_id`, `user_id`, `user_name`, `queue_position`, `created_at`, in queue order. Detail only: `GET /books` does not include it. Omits email and enrollment number.
 - `POST /api/v1/books` — Register title + initial barcoded copies (*Admin*)
 - `POST /api/v1/books/{book_id}/copies` — Add individual barcoded physical copy (*Admin*)
 
@@ -235,8 +236,17 @@ All frontend operations strictly communicate through these endpoints:
 - `POST /api/v1/circulation/waitlist` — Atomic FIFO queue registration
 - `DELETE /api/v1/circulation/waitlist/{id}` — Cancel waiting reservation
 - `POST /api/v1/circulation/return` — Return processing with overdue fine calculation & automated FIFO waitlist handoff
+- `GET /api/v1/policy` — The lending rules from `config.py`: `overdue_fine_rate_per_day`, `loan_duration_days` and `max_loans_per_user`. Public, because the footer shows them before sign-in. `max_loans_per_user` is the quota new accounts get; checkout enforces each account's stored `max_books_quota`, so changing it does not affect existing accounts.
 
 ### Dashboards & Admin
 - `GET /api/v1/users/{user_id}/dashboard` — Active loans, countdowns, waitlist cards, borrowing history
-- `GET /api/v1/admin/overview` — Library KPIs, circulation desk table, global waitlist lineup
+- `GET /api/v1/admin/overview` — Library KPIs, circulation desk table, global waitlist lineup, student fines ledger
+  - `student_fines[]`: `user_id`, `full_name`, `enrollment_no`, `email`, `outstanding_fines`, highest balance first. Lists every student, plus any other account with a balance, so it adds up to `kpis.total_fines`.
+  - `waitlist_queue[].user_enrollment_no`: the waiting patron's enrollment number.
+- `GET /api/v1/admin/grouped-books?search=` — Each title with its full borrower history
+  - `waitlist_count`: patrons waiting for the title. Also on `grouped_books[]` in the overview.
+- `POST /api/v1/admin/settle-fine` — Record a fine payment. Send `user_id` and optionally `amount_settled`; leaving it out settles the full balance. An amount above the balance is capped at the balance. Returns `400` if the amount is zero or negative.
 - `POST /api/v1/admin/reset-demo` — 1-click database reset to initial demo state
+
+### Fine fields on loans
+Loans in the dashboard and overview, and `borrowers[]` in the grouped books, carry `accrued_fine`. On a loan still out it is what returning the copy now would charge, using the daily rate in `config.py`; on a returned loan it is what was charged. Loans also carry `days_overdue`, the days that fine is based on. A fine only adds to `outstanding_fines` when the copy is returned, so an overdue loan still out does not appear in `student_fines`.

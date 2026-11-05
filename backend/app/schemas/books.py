@@ -39,6 +39,19 @@ class BookOut(BaseModel):
     user_context: Optional[UserContext] = None
 
 
+class BookWaitlistEntryOut(BaseModel):
+    reservation_id: int
+    user_id: int
+    user_name: str
+    queue_position: int
+    created_at: str
+
+
+class BookDetailOut(BookOut):
+    # Book detail is readable by any patron, so this carries no email or enrollment number
+    waitlist_entries: List[BookWaitlistEntryOut] = []
+
+
 class BookCreateRequest(BaseModel):
     isbn: str
     title: str

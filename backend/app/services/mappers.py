@@ -1,10 +1,12 @@
 """Turns database rows into API response models. Shared by the services."""
+import datetime
 import sqlite3
 from typing import Optional
 
 from app.schemas.auth import UserOut
 from app.schemas.circulation import LoanOut
 from app.schemas.requests import BookRequestOut
+from app.services.circulation_service import calculate_overdue_fine, overdue_days
 
 
 def enrollment_or_fallback(enrollment_no: Optional[str], user_id: int) -> str:
@@ -24,7 +26,13 @@ def to_user_out(row: sqlite3.Row, active_loans_count: int) -> UserOut:
     )
 
 
-def to_loan_out(row: sqlite3.Row, is_overdue: bool, days_remaining: int) -> LoanOut:
+def to_loan_out(
+    row: sqlite3.Row,
+    is_overdue: bool,
+    days_remaining: int,
+    days_overdue: int,
+    accrued_fine: float,
+) -> LoanOut:
     """Expects a row selected with queries.LOAN_DETAILS_SELECT."""
     return LoanOut(
         loan_id=row["loan_id"],
@@ -47,7 +55,21 @@ def to_loan_out(row: sqlite3.Row, is_overdue: bool, days_remaining: int) -> Loan
         fine_assessed=float(row["fine_assessed"]),
         issued_via=row["issued_via"],
         is_overdue=is_overdue,
-        days_remaining=days_remaining
+        days_remaining=days_remaining,
+        days_overdue=days_overdue,
+        accrued_fine=accrued_fine
+    )
+
+
+def to_active_loan_out(row: sqlite3.Row, now: datetime.datetime) -> LoanOut:
+    """A loan still out, with the same fine returning it right now would charge."""
+    due_dt = datetime.datetime.fromisoformat(row["due_date"])
+    return to_loan_out(
+        row,
+        is_overdue=now > due_dt,
+        days_remaining=(due_dt - now).days,
+        days_overdue=overdue_days(due_dt, now),
+        accrued_fine=calculate_overdue_fine(due_dt, now)
     )
 
 

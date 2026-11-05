@@ -54,7 +54,7 @@ export default function WaitlistTab({ waitlistQueue }) {
                       <div className="font-medium text-slate-900 flex items-center gap-1.5">
                         <span>{w.user_name}</span>
                         <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-800 border border-indigo-200">
-                          {w.enrollment_no || `ID #${w.user_id}`}
+                          {w.user_enrollment_no}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 font-mono">{w.user_email}</div>

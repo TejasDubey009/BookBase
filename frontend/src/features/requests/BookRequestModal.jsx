@@ -5,23 +5,24 @@ import { BOOK_CATEGORIES, DEFAULT_CATEGORY } from '../../constants/catalog';
 
 const REQUEST_CATEGORIES = [...BOOK_CATEGORIES, 'General Reference'];
 
-export default function BookRequestModal({ isOpen, onClose, currentUser, initialBook, onSuccess }) {
-  const [title, setTitle] = useState(initialBook?.title || '');
-  const [author, setAuthor] = useState(initialBook?.author || '');
-  const [category, setCategory] = useState(initialBook?.category || DEFAULT_CATEGORY);
+export default function BookRequestModal({ isOpen, onClose, currentUser, prefillBook, onSuccess }) {
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('');
+  const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Sync if initialBook changes
+  // This modal stays mounted, so start each opening from the chosen book or a blank form.
   useEffect(() => {
-    if (initialBook) {
-      setTitle(initialBook.title || '');
-      setAuthor(initialBook.author || '');
-      setCategory(initialBook.category || DEFAULT_CATEGORY);
-    }
-  }, [initialBook]);
+    if (!isOpen) return;
+    setTitle(prefillBook?.title || '');
+    setAuthor(prefillBook?.author || '');
+    setCategory(prefillBook?.category || DEFAULT_CATEGORY);
+    setNotes('');
+    setError(null);
+  }, [isOpen, prefillBook]);
 
   if (!isOpen) return null;
 
@@ -46,7 +47,7 @@ export default function BookRequestModal({ isOpen, onClose, currentUser, initial
         author: author.trim() || null,
         category: category,
         notes: notes.trim() || null,
-        book_id: initialBook?.book_id || null,
+        book_id: prefillBook?.book_id || null,
       });
 
       setSuccess(true);

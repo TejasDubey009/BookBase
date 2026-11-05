@@ -15,7 +15,7 @@ function KpiCard({ label, icon, value, note, noteClassName = 'text-slate-500', c
   );
 }
 
-export default function AdminKpiGrid({ kpis, requestsCount, pendingRequestsCount }) {
+export default function AdminKpiGrid({ kpis, requestsCount, pendingRequestsCount, fineRate }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
       <KpiCard
@@ -49,7 +49,7 @@ export default function AdminKpiGrid({ kpis, requestsCount, pendingRequestsCount
         label="Assessed Fines"
         icon={<span className="font-bold text-rose-500 font-mono">₹</span>}
         value={`₹${(kpis.total_fines || 0).toFixed(2)}`}
-        note="₹2.00/day retention rate"
+        note={`${fineRate}/day retention rate`}
       />
     </div>
   );

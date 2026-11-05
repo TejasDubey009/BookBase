@@ -56,7 +56,7 @@ def return_book(payload: ReturnRequest, db: sqlite3.Connection = Depends(get_db)
     """
     CRITICAL WAITLIST HANDOFF & AUTO-ASSIGNMENT ENGINE:
     1. Verify loan is active (return_date IS NULL).
-    2. Mark return_date = NOW(), assess fines ($2.00/day if overdue).
+    2. Mark return_date = NOW(), assess fines (daily rate in config.py) if overdue.
     3. Query waitlist_reservations for oldest 'Waiting' entry (ORDER BY created_at ASC, reservation_id ASC LIMIT 1).
     4. IF waitlisted user found (#1 in line):
        - Mark waitlist row as 'Fulfilled' (fulfilled_at = NOW()).

@@ -50,7 +50,7 @@ function BorrowerCard({ b, loadingActionId, onReturnBook, fetchOverview }) {
           {isOverdue && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">
               <AlertTriangle className="w-3 h-3 text-rose-600" />
-              Overdue • ₹{b.fine_assessed.toFixed(2)} Fine
+              Overdue • ₹{b.accrued_fine.toFixed(2)} Fine
             </span>
           )}
           {isActive && !isOverdue && (

@@ -13,7 +13,8 @@ from app.db.queries import (
 )
 from app.schemas.circulation import LoanOut
 from app.schemas.dashboard import UserDashboardOut, UserWaitlistCard
-from app.services.mappers import to_book_request_out, to_loan_out, to_user_out
+from app.services.circulation_service import overdue_days
+from app.services.mappers import to_active_loan_out, to_book_request_out, to_loan_out, to_user_out
 
 LOAN_HISTORY_LIMIT = 20
 
@@ -24,11 +25,7 @@ def _active_loans(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
         f"{LOAN_DETAILS_SELECT} WHERE cl.user_id = ? AND cl.return_date IS NULL ORDER BY cl.due_date ASC",
         (user_id,)
     )
-    loans = []
-    for row in cursor.fetchall():
-        due_dt = datetime.datetime.fromisoformat(row["due_date"])
-        loans.append(to_loan_out(row, is_overdue=now > due_dt, days_remaining=(due_dt - now).days))
-    return loans
+    return [to_active_loan_out(row, now) for row in cursor.fetchall()]
 
 
 def _loan_history(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
@@ -39,8 +36,16 @@ def _loan_history(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
     loans = []
     for row in cursor.fetchall():
         due_dt = datetime.datetime.fromisoformat(row["due_date"])
-        returned_late = datetime.datetime.fromisoformat(row["return_date"]) > due_dt
-        loans.append(to_loan_out(row, is_overdue=returned_late, days_remaining=0))
+        returned_at = datetime.datetime.fromisoformat(row["return_date"])
+        loans.append(
+            to_loan_out(
+                row,
+                is_overdue=returned_at > due_dt,
+                days_remaining=0,
+                days_overdue=overdue_days(due_dt, returned_at),
+                accrued_fine=float(row["fine_assessed"])
+            )
+        )
     return loans
 
 

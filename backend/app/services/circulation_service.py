@@ -6,7 +6,12 @@ import datetime
 import sqlite3
 from typing import Optional
 
-from app.config import LOAN_DURATION_DAYS, MAX_OUTSTANDING_FINES_FOR_BORROWING, OVERDUE_FINE_RATE_PER_DAY
+from app.config import (
+    LOAN_DURATION_DAYS,
+    MAX_LOANS_PER_USER,
+    MAX_OUTSTANDING_FINES_FOR_BORROWING,
+    OVERDUE_FINE_RATE_PER_DAY,
+)
 from app.core.clock import utc_now, utc_now_iso
 from app.core.errors import BadRequestError, ConflictError, NotFoundError
 from app.db.audit import log_audit
@@ -15,6 +20,7 @@ from app.db.queries import count_active_loans
 from app.schemas.circulation import (
     CheckoutRequest,
     CheckoutResponse,
+    LendingPolicyOut,
     ReturnRequest,
     ReturnResponse,
     WaitlistRequest,
@@ -33,17 +39,26 @@ _ACTIVE_LOAN_DETAILS_SELECT = """
 """
 
 
+def get_lending_policy() -> LendingPolicyOut:
+    return LendingPolicyOut(
+        overdue_fine_rate_per_day=OVERDUE_FINE_RATE_PER_DAY,
+        loan_duration_days=LOAN_DURATION_DAYS,
+        max_loans_per_user=MAX_LOANS_PER_USER
+    )
+
+
+def overdue_days(due_date: datetime.datetime, at: datetime.datetime) -> int:
+    """Whole days overdue. Any part of a first late day counts as one day."""
+    if at <= due_date:
+        return 0
+    overdue = at - due_date
+    if overdue.days == 0 and overdue.seconds > 0:
+        return 1
+    return overdue.days
+
+
 def calculate_overdue_fine(due_date: datetime.datetime, returned_at: datetime.datetime) -> float:
-    """Whole days overdue at the daily rate. Any part of a first late day counts as one day."""
-    if returned_at <= due_date:
-        return 0.0
-    overdue = returned_at - due_date
-    days_overdue = overdue.days
-    if overdue.seconds > 0 and days_overdue == 0:
-        days_overdue = 1
-    if days_overdue > 0:
-        return round(days_overdue * OVERDUE_FINE_RATE_PER_DAY, 2)
-    return 0.0
+    return round(overdue_days(due_date, returned_at) * OVERDUE_FINE_RATE_PER_DAY, 2)
 
 
 def _user_holds_title(cursor: sqlite3.Cursor, user_id: int, book_id: int) -> bool:
@@ -70,7 +85,7 @@ def _assert_can_borrow(cursor: sqlite3.Cursor, user_id: int, book_id: int) -> No
 
     if user["outstanding_fines"] > MAX_OUTSTANDING_FINES_FOR_BORROWING:
         raise BadRequestError(
-            f"Borrowing blocked: Outstanding fines of ${user['outstanding_fines']:.2f} exceed $25.00 limit."
+            f"Borrowing blocked: Outstanding fines of ₹{user['outstanding_fines']:.2f} exceed ₹{MAX_OUTSTANDING_FINES_FOR_BORROWING:.2f} limit."
         )
 
     active_loans_count = count_active_loans(cursor, user_id)
@@ -341,7 +356,7 @@ def _hand_off_to_waitlist(
         f"UPDATE waitlist_reservations SET status='Fulfilled', fulfilled_at='{now_iso}' WHERE reservation_id={res_id};\n"
         f"INSERT INTO circulation_loans (loan_id={new_loan_id}, copy_id={loan['copy_id']}, user_id={next_user_id}, issued_via='{ISSUED_VIA_WAITLIST}', due='{new_due_iso[:10]}');\n"
         f"-- Copy {loan['barcode']} bypassed shelf and auto-assigned to Queue #1 ({next_user_name})",
-        f"returned_by: {loan['borrower_name']} (uid:{loan['user_id']}), auto_assigned_to: {next_user_name} (uid:{next_user_id}), book: '{loan['title']}', barcode: {loan['barcode']}, new_loan_id: {new_loan_id}, fine: ${fine:.2f}"
+        f"returned_by: {loan['borrower_name']} (uid:{loan['user_id']}), auto_assigned_to: {next_user_name} (uid:{next_user_id}), book: '{loan['title']}', barcode: {loan['barcode']}, new_loan_id: {new_loan_id}, fine: ₹{fine:.2f}"
     )
 
     return ReturnResponse(
@@ -379,7 +394,7 @@ def _return_to_shelf(
         "TX_RETURN_TO_SHELF",
         f"UPDATE circulation_loans SET return_date='{now.isoformat()}', fine_assessed={fine} WHERE loan_id={loan['loan_id']};\n"
         f"UPDATE book_copies SET status='Available' WHERE copy_id={loan['copy_id']};",
-        f"returned_by: {loan['borrower_name']} (uid:{loan['user_id']}), copy_id: {loan['copy_id']}, barcode: {loan['barcode']}, fine: ${fine:.2f}, status: Available on shelf"
+        f"returned_by: {loan['borrower_name']} (uid:{loan['user_id']}), copy_id: {loan['copy_id']}, barcode: {loan['barcode']}, fine: ₹{fine:.2f}, status: Available on shelf"
     )
 
     return ReturnResponse(

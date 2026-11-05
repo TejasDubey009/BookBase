@@ -11,6 +11,14 @@ class SettleFineRequest(BaseModel):
     amount_settled: Optional[float] = None
 
 
+class StudentFineOut(BaseModel):
+    user_id: int
+    full_name: str
+    enrollment_no: str
+    email: str
+    outstanding_fines: float
+
+
 class BookBorrowerOut(BaseModel):
     loan_id: int
     copy_id: int
@@ -25,6 +33,7 @@ class BookBorrowerOut(BaseModel):
     return_date: Optional[str] = None
     status: str  # 'Active', 'Overdue', 'Returned'
     fine_assessed: float
+    accrued_fine: float  # Active loan: what returning it now would charge. Returned loan: what was charged.
     days_remaining: int
 
 
@@ -40,6 +49,7 @@ class GroupedBookBorrowersOut(BaseModel):
     total_copies: int
     available_copies: int
     active_loans_count: int
+    waitlist_count: int
     borrowers: List[BookBorrowerOut]
 
 
@@ -59,4 +69,5 @@ class AdminOverviewOut(BaseModel):
     waitlist_queue: List[WaitlistEntryOut]
     book_requests: List[BookRequestOut] = []
     grouped_books: Optional[List[GroupedBookBorrowersOut]] = None
+    student_fines: List[StudentFineOut] = []
     recent_audit_logs: List[dict]
