@@ -1,5 +1,4 @@
 """FastAPI dependencies that establish who is calling the API."""
-import sqlite3
 from typing import Optional
 
 from fastapi import Depends
@@ -8,13 +7,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.core.errors import ForbiddenError, UnauthorizedError
 from app.core.security import SESSION_INVALID_MESSAGE, CurrentUser, decode_token
 from app.db.connection import get_db
+from app.db.types import Connection
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
-    db: sqlite3.Connection = Depends(get_db),
+    db: Connection = Depends(get_db),
 ) -> Optional[CurrentUser]:
     """For public routes. No token means anonymous, but a token that is sent must be valid."""
     if credentials is None:

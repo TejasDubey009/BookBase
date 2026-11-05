@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { api } from '../api/bookbase';
 
-/** Borrow, waitlist and return actions, with their toasts and per-item loading state. */
-export function useCirculationActions({ activePortal, currentUser, showToast, notifyDataChanged, openAuthModal }) {
+/** Borrow and waitlist actions, with their toasts and per-item loading state. */
+export function useCirculationActions({ activePortal, currentUser, showToast, notifyDataChanged, openAuthModal, openBorrowDialog }) {
   const [loadingActionId, setLoadingActionId] = useState(null);
 
-  // Physical borrowing is only possible at the kiosk
-  const handleBorrow = async (bookId) => {
+  // Physical borrowing is only possible at the kiosk, and starts by asking for the copy's code
+  const handleBorrow = (book) => {
     if (activePortal === 'student') {
       showToast({
         type: 'warning',
-        message: 'Physical borrowing is disabled in Remote Student Portal. Please visit the Central Library Kiosk to check out copies.'
+        message: 'Borrowing isn\'t available on the Student Portal. Please use the Library Kiosk.'
       });
       return;
     }
@@ -20,16 +20,7 @@ export function useCirculationActions({ activePortal, currentUser, showToast, no
       showToast({ type: 'warning', message: 'Please sign in with your Enrollment Number to borrow books.' });
       return;
     }
-    setLoadingActionId(bookId);
-    try {
-      const resp = await api.checkoutBook(bookId);
-      showToast({ type: 'success', message: resp.message });
-      notifyDataChanged();
-    } catch (err) {
-      showToast({ type: 'error', message: err.message });
-    } finally {
-      setLoadingActionId(null);
-    }
+    openBorrowDialog(book);
   };
 
   const handleJoinWaitlist = async (bookId) => {
@@ -50,26 +41,6 @@ export function useCirculationActions({ activePortal, currentUser, showToast, no
     }
   };
 
-  // A return may hand the copy straight to the next patron in the FIFO waitlist
-  const handleReturn = async (loanId) => {
-    setLoadingActionId(loanId);
-    try {
-      const resp = await api.returnBook(loanId);
-      if (resp.status === 'AUTO_ASSIGNED_TO_WAITLIST') {
-        showToast({ type: 'waitlist_promo', status: 'AUTO_ASSIGNED_TO_WAITLIST', message: resp.message });
-      } else {
-        showToast({ type: 'success', message: resp.message });
-      }
-      notifyDataChanged();
-      return resp;
-    } catch (err) {
-      showToast({ type: 'error', message: err.message });
-      throw err;
-    } finally {
-      setLoadingActionId(null);
-    }
-  };
-
   const handleCancelWaitlist = async (reservationId) => {
     try {
       const resp = await api.cancelWaitlist(reservationId);
@@ -80,5 +51,5 @@ export function useCirculationActions({ activePortal, currentUser, showToast, no
     }
   };
 
-  return { loadingActionId, handleBorrow, handleJoinWaitlist, handleReturn, handleCancelWaitlist };
+  return { loadingActionId, handleBorrow, handleJoinWaitlist, handleCancelWaitlist };
 }

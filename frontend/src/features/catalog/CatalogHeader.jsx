@@ -4,7 +4,7 @@ export default function CatalogHeader({ books, currentUser, portal, onOpenAddBoo
   return (
     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
-        <h1 className="font-serif text-[28px] leading-snug text-ink">Curriculum Library</h1>
+        <h1 className="font-serif text-[28px] leading-snug text-ink">{portal === 'kiosk' ? 'Library Kiosk' : 'Library Catalogue'}</h1>
         {children}
       </div>
 
@@ -18,7 +18,7 @@ export default function CatalogHeader({ books, currentUser, portal, onOpenAddBoo
             onClick={onOpenBookRequest}
             className="px-3 py-1.5 rounded border border-field text-sm text-body hover:bg-shelf whitespace-nowrap transition-colors"
           >
-            Request Title
+            Request a Book
           </button>
         ) : null}
 
@@ -27,7 +27,7 @@ export default function CatalogHeader({ books, currentUser, portal, onOpenAddBoo
             onClick={onOpenAddBook}
             className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium whitespace-nowrap transition-colors"
           >
-            Add Title
+            Add Book
           </button>
         )}
       </div>

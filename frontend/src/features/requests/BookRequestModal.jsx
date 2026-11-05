@@ -73,10 +73,10 @@ export default function BookRequestModal({ isOpen, onClose, currentUser, prefill
           <div className="flex items-center gap-2.5">
             <div>
               <h2 className="text-base font-medium text-ink">
-                Request Book / Acquisition
+                Request a Book
               </h2>
               <p className="text-xs text-muted">
-                Submit a title for library procurement or book bank addition
+                Tell the library which book you'd like it to add
               </p>
             </div>
           </div>

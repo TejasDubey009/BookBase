@@ -23,16 +23,23 @@ export default function BookDetailActions({
               <span className="text-sm text-body flex items-center gap-1">
                 Holding Copy {book.user_context.active_copy_barcode}
               </span>
-              <button
-                disabled={loadingActionId === book.book_id}
-                onClick={() => {
-                  onReturn(book.user_context.active_loan_id);
-                  onClose();
-                }}
-                className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors"
-              >
-                Return Copy at Kiosk
-              </button>
+              {book.user_context.return_requested ? (
+                <span className="text-sm text-muted">· Return requested</span>
+              ) : (
+                <button
+                  onClick={() => {
+                    onReturn({
+                      loan_id: book.user_context.active_loan_id,
+                      title: book.title,
+                      barcode: book.user_context.active_copy_barcode,
+                    });
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors"
+                >
+                  Request Return
+                </button>
+              )}
             </div>
           ) : book.user_context?.waitlist_position ? (
             <div className="flex items-center gap-2">
@@ -54,12 +61,12 @@ export default function BookDetailActions({
             <button
               disabled={loadingActionId === book.book_id}
               onClick={() => {
-                onBorrow(book.book_id);
+                onBorrow(book);
                 onClose();
               }}
               className="px-3 py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors"
             >
-              Borrow Copy at Kiosk
+              Borrow
             </button>
           ) : (
             <div className="flex items-center gap-2">
@@ -81,7 +88,7 @@ export default function BookDetailActions({
                 }}
                 className="px-3 py-2 rounded border border-field text-body hover:bg-shelf text-xs font-medium flex items-center gap-1"
               >
-                <span>Request Extra Copies</span>
+                <span>Request More Copies</span>
               </button>
             </div>
           )}
@@ -95,12 +102,12 @@ export default function BookDetailActions({
         <div className="flex items-center gap-2">
           {book.user_context?.has_active_loan ? (
             <span className="text-sm text-body flex items-center gap-1.5">
-              <span>Holding Copy {book.user_context.active_copy_barcode} • Return at Central Library Kiosk</span>
+              <span>Holding Copy {book.user_context.active_copy_barcode} • Return at the Library Kiosk</span>
             </span>
           ) : book.available_copies > 0 ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-body">
-                <span>Available on shelf • Visit Library Kiosk to borrow</span>
+                <span>Available on shelf • Borrow at the Library Kiosk</span>
               </span>
             </div>
           ) : (
@@ -123,7 +130,7 @@ export default function BookDetailActions({
                 }}
                 className="px-4 py-2 rounded border border-field text-body hover:bg-shelf text-xs font-medium flex items-center gap-1.5"
               >
-                <span>Request Additional Copy</span>
+                <span>Request More Copies</span>
               </button>
             </div>
           )}
@@ -135,7 +142,7 @@ export default function BookDetailActions({
       {/* ========================================================= */}
       {portal === 'admin' && (
         <span className="text-xs text-muted">
-          Total {book.total_copies} Accessioned Copies ({book.available_copies} Available)
+          {book.total_copies} Copies ({book.available_copies} Available)
         </span>
       )}
     </div>

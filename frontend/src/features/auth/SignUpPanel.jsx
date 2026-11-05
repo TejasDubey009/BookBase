@@ -1,6 +1,7 @@
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function SignUpPanel({
+  isStaff,
   handleRegister,
   regFullName,
   setRegFullName,
@@ -10,15 +11,21 @@ export default function SignUpPanel({
   setRegEmail,
   regPassword,
   setRegPassword,
+  regConfirmPassword,
+  setRegConfirmPassword,
+  regStaffCode,
+  setRegStaffCode,
   showPassword,
   setShowPassword,
   loading
 }) {
   return (
     <div className="p-6 pt-3 space-y-4">
-      <div className="p-3 bg-shelf border border-line rounded text-xs text-body">
-        <span className="font-medium">Student Library Pass:</span> Sign up with your university enrollment number to borrow textbooks at the kiosk and monitor deadlines remotely.
-      </div>
+      {isStaff && (
+        <div className="p-3 bg-shelf border border-line rounded text-xs text-body">
+          Staff accounts need the staff code from the library administrator.
+        </div>
+      )}
 
       <form onSubmit={handleRegister} className="space-y-3">
         <div>
@@ -55,7 +62,7 @@ export default function SignUpPanel({
 
         <div>
           <label className="block text-xs text-muted mb-1">
-            University / Student Email <span className="text-danger">*</span>
+            Email <span className="text-danger">*</span>
           </label>
           <div className="relative">
             <input
@@ -71,7 +78,7 @@ export default function SignUpPanel({
 
         <div>
           <label className="block text-xs text-muted mb-1">
-            Choose Portal Password <span className="text-danger">*</span>
+            Password <span className="text-danger">*</span>
           </label>
           <div className="relative">
             <input
@@ -79,7 +86,8 @@ export default function SignUpPanel({
               required
               value={regPassword}
               onChange={(e) => setRegPassword(e.target.value)}
-              placeholder="Choose a password (min 6 chars)"
+              placeholder="At least 8 characters"
+              minLength={8}
               className="w-full pl-3 pr-9 py-2 text-xs rounded border border-field bg-white text-ink focus:outline-none focus:ring-1 focus:ring-ink focus:border-ink"
             />
             <button
@@ -92,12 +100,43 @@ export default function SignUpPanel({
           </div>
         </div>
 
+        <div>
+          <label className="block text-xs text-muted mb-1">
+            Confirm Password <span className="text-danger">*</span>
+          </label>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            required
+            value={regConfirmPassword}
+            onChange={(e) => setRegConfirmPassword(e.target.value)}
+            placeholder="Type the password again"
+            className="w-full px-3 py-2 text-xs rounded border border-field bg-white text-ink focus:outline-none focus:ring-1 focus:ring-ink focus:border-ink"
+          />
+        </div>
+
+        {isStaff && (
+          <div>
+            <label className="block text-xs text-muted mb-1">
+              Staff Code <span className="text-danger">*</span>
+            </label>
+            <input
+              type="password"
+              required
+              autoComplete="off"
+              value={regStaffCode}
+              onChange={(e) => setRegStaffCode(e.target.value)}
+              placeholder="From the library administrator"
+              className="w-full px-3 py-2 text-xs rounded border border-field bg-white text-ink focus:outline-none focus:ring-1 focus:ring-ink focus:border-ink"
+            />
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={loading}
           className="w-full py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-50 mt-2 flex items-center justify-center gap-1.5"
         >
-          <span>{loading ? 'Creating Account...' : 'Complete Sign Up & Enter Portal'}</span>
+          <span>{loading ? 'Creating account...' : 'Create Account'}</span>
         </button>
       </form>
     </div>

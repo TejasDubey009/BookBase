@@ -34,15 +34,16 @@ export default function BookCardActions({
       {/* The kiosk is the only place books can physically be borrowed or returned */}
       {portal === 'kiosk' && (
         <>
-          {hasActiveLoan ? (
+          {hasActiveLoan && uCtx.return_requested ? (
+            <StatusLines primary="Return Requested" secondary="Waiting for a librarian" />
+          ) : hasActiveLoan ? (
             <div className="space-y-2">
               <div className="text-xs text-body">Borrowed by You</div>
               <button
-                disabled={isActionLoading}
-                onClick={() => onReturn(uCtx.active_loan_id)}
+                onClick={() => onReturn({ loan_id: uCtx.active_loan_id, title: book.title, barcode: uCtx.active_copy_barcode })}
                 className={PRIMARY_CLASSES}
               >
-                {isActionLoading ? '...' : 'Return at Kiosk'}
+                Request Return
               </button>
             </div>
           ) : waitlistPos ? (
@@ -53,10 +54,10 @@ export default function BookCardActions({
           ) : isAvailable ? (
             <button
               disabled={isActionLoading}
-              onClick={() => onBorrow(book.book_id)}
+              onClick={() => onBorrow(book)}
               className={PRIMARY_CLASSES}
             >
-              {isActionLoading ? 'Processing...' : 'Borrow Book at Kiosk'}
+              Borrow
             </button>
           ) : (
             <div className="flex items-stretch gap-1.5">
@@ -70,8 +71,8 @@ export default function BookCardActions({
               <button
                 type="button"
                 onClick={() => onRequestBook?.(book)}
-                title="Request extra curriculum copies"
-                aria-label="Request extra curriculum copies"
+                title="Request more copies"
+                aria-label="Request more copies"
                 className="px-2 rounded border border-field text-body hover:bg-shelf transition-colors"
               >
                 <BookPlus className="w-4 h-4" />
@@ -85,11 +86,14 @@ export default function BookCardActions({
       {portal === 'student' && (
         <>
           {hasActiveLoan ? (
-            <StatusLines primary="Checked Out to You" secondary="Return at Kiosk" />
+            <StatusLines
+              primary="Checked Out to You"
+              secondary={uCtx.return_requested ? 'Return requested' : 'Return at the Library Kiosk'}
+            />
           ) : waitlistPos ? (
             <StatusLines primary={<>Queue: #{waitlistPos}</>} secondary="Auto-Dispatches" />
           ) : isAvailable ? (
-            <StatusLines primary="Available on Shelf" secondary="Borrow at Library Kiosk" />
+            <StatusLines primary="Available on Shelf" secondary="Borrow at the Library Kiosk" />
           ) : (
             <div className="space-y-2">
               <div className="text-xs text-body">All Copies On Loan</div>
@@ -103,7 +107,7 @@ export default function BookCardActions({
 
       {portal === 'admin' && (
         <div className="text-xs text-muted">
-          <div>{book.total_copies} Barcoded Copies</div>
+          <div>{book.total_copies} Copies</div>
           <button onClick={() => onSelect(book)} className="mt-1 text-body hover:text-ink underline underline-offset-2 transition-colors">
             View Details
           </button>

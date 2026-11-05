@@ -59,3 +59,8 @@ Thumbs.db
 .env.production.local
 *.local
 .vercel
+
+# Local SQLite database, created and seeded on first run
+backend/*.db
+backend/*.db-wal
+backend/*.db-shm

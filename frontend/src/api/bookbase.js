@@ -91,10 +91,10 @@ export const api = {
     }),
 
   // Circulation & Waitlist Engine
-  checkoutBook: (bookId, copyId = null) =>
+  checkoutBook: (bookId, barcode) =>
     request('/circulation/checkout', {
       method: 'POST',
-      body: JSON.stringify({ book_id: bookId, copy_id: copyId }),
+      body: JSON.stringify({ book_id: bookId, barcode }),
     }),
 
   joinWaitlist: (bookId) =>
@@ -108,10 +108,21 @@ export const api = {
       method: 'DELETE',
     }),
 
-  returnBook: (loanId = null, copyId = null) =>
-    request('/circulation/return', {
+  raiseReturnRequest: (returnRequest) =>
+    request('/circulation/return-requests', {
       method: 'POST',
-      body: JSON.stringify({ loan_id: loanId, copy_id: copyId }),
+      body: JSON.stringify(returnRequest),
+    }),
+
+  confirmReturnRequest: (returnRequestId, condition) =>
+    request(`/circulation/return-requests/${returnRequestId}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ condition }),
+    }),
+
+  rejectReturnRequest: (returnRequestId) =>
+    request(`/circulation/return-requests/${returnRequestId}/reject`, {
+      method: 'POST',
     }),
 
   getLendingPolicy: () => request('/policy'),

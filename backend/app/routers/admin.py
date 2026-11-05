@@ -1,4 +1,3 @@
-import sqlite3
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends
@@ -6,6 +5,7 @@ from fastapi import APIRouter, Depends
 from app.core.auth import require_admin
 from app.core.security import CurrentUser
 from app.db.connection import get_db
+from app.db.types import Connection
 from app.schemas.admin import AdminOverviewOut, GroupedBookBorrowersOut, SettleFineRequest
 from app.services import admin_service
 
@@ -17,12 +17,12 @@ router = APIRouter(
 
 
 @router.get("/overview", response_model=AdminOverviewOut)
-def get_admin_overview(db: sqlite3.Connection = Depends(get_db)):
+def get_admin_overview(db: Connection = Depends(get_db)):
     return admin_service.get_overview(db)
 
 
 @router.get("/grouped-books", response_model=List[GroupedBookBorrowersOut])
-def get_admin_grouped_books(search: Optional[str] = None, db: sqlite3.Connection = Depends(get_db)):
+def get_admin_grouped_books(search: Optional[str] = None, db: Connection = Depends(get_db)):
     """
     Dedicated endpoint returning curriculum books and their full borrower history/active loans.
     """
@@ -30,7 +30,7 @@ def get_admin_grouped_books(search: Optional[str] = None, db: sqlite3.Connection
 
 
 @router.post("/settle-fine")
-def settle_user_fine(payload: SettleFineRequest, db: sqlite3.Connection = Depends(get_db)):
+def settle_user_fine(payload: SettleFineRequest, db: Connection = Depends(get_db)):
     """
     Librarian action to record fine payment / waive fine for a student patron.
     """
@@ -38,7 +38,7 @@ def settle_user_fine(payload: SettleFineRequest, db: sqlite3.Connection = Depend
 
 
 @router.post("/reset-demo")
-def reset_demo(actor: CurrentUser = Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
+def reset_demo(actor: CurrentUser = Depends(require_admin), db: Connection = Depends(get_db)):
     """
     Resets the database back to clean seeded state at any time for repeat viva demonstrations.
     """

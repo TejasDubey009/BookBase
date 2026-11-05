@@ -42,11 +42,12 @@ print("=" * 70)
 for portal in portals.values():
     print(f"► {portal['title'] + ':':<20}http://localhost:{portal['port']}")
 print(f"► {'REST API Docs:':<20}http://127.0.0.1:{api_port}/docs")
-print("► Database Engine:    3NF Normalized SQLite (shared by all three portals)")
+print("► Database:           DATABASE_URL in backend/.env (Supabase), or a local SQLite file if unset")
 print("=" * 70)
 
 api_env = dict(os.environ, PYTHONPATH=str(BACKEND_DIR))
-# Local defaults: the seeded accounts show in the sign-in modal, and sessions survive auto-reloads
+# Local defaults, which backend/.env overrides: the seeded student accounts show in the sign-in
+# modal, and sessions survive auto-reloads
 api_env.setdefault("BOOKBASE_DEMO_MODE", "1")
 api_env.setdefault("BOOKBASE_SECRET_KEY", secrets.token_urlsafe(48))
 vite_env = dict(os.environ, BOOKBASE_API_URL=f"http://127.0.0.1:{api_port}")

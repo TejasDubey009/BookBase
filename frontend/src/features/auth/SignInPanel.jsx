@@ -1,7 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function SignInPanel({
-  roleTab,
   filteredUsers,
   handleQuickSelect,
   handleManualLogin,
@@ -15,11 +14,11 @@ export default function SignInPanel({
 }) {
   return (
     <div className="p-6 pt-3 space-y-4">
-      {/* Quick Demo Account Selector (only when the server has demo mode on) */}
+      {/* Quick Demo Account Selector (students only, and only when the server has demo mode on) */}
       {filteredUsers.length > 0 && (
         <div>
           <label className="block text-xs text-muted mb-1">
-            Quick Select {roleTab === 'admin' ? 'Staff' : 'Student'} Demo Account:
+            Quick Select Student Demo Account:
           </label>
           <div className="grid grid-cols-2 gap-2">
             {filteredUsers.map((u) => {
@@ -48,12 +47,6 @@ export default function SignInPanel({
         </div>
       )}
 
-      <div className="relative flex py-1 items-center">
-        <div className="grow border-t border-line"></div>
-        <span className="shrink mx-3 text-xs font-medium text-muted">Sign In Credentials</span>
-        <div className="grow border-t border-line"></div>
-      </div>
-
       {/* Manual Sign In Form */}
       <form onSubmit={handleManualLogin} className="space-y-3">
         <div>
@@ -66,7 +59,7 @@ export default function SignInPanel({
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder={roleTab === 'admin' ? 'ADMIN001 or admin@bookbase.in' : 'CSBS2022001 or tejas@bookbase.in'}
+              placeholder="Enrollment number or email"
               className="w-full px-3 py-2 text-xs rounded border border-field bg-white text-ink focus:outline-none focus:ring-1 focus:ring-ink focus:border-ink"
             />
           </div>
@@ -105,7 +98,7 @@ export default function SignInPanel({
           disabled={loading}
           className="w-full py-1.5 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-50 mt-2 flex items-center justify-center gap-1.5"
         >
-          <span>{loading ? 'Authenticating...' : `Sign In as ${roleTab === 'admin' ? 'Admin' : 'Student'}`}</span>
+          <span>{loading ? 'Signing in...' : 'Sign In'}</span>
         </button>
       </form>
     </div>

@@ -29,7 +29,7 @@ export default function PatronSummaryCard({ user, activeLoansCount, onOpenBookRe
           onClick={onOpenBookRequest}
           className="px-3 py-1.5 rounded border border-field text-sm text-body hover:bg-shelf whitespace-nowrap transition-colors"
         >
-          Request New Book
+          Request a Book
         </button>
       </div>
     </div>

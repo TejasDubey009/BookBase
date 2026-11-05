@@ -3,10 +3,8 @@ import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode
 
-# Set VERCEL env var so config.py knows to use writable /tmp for SQLite
+# Tells config.py this is Vercel, where DATABASE_URL and BOOKBASE_SECRET_KEY are required
 os.environ["VERCEL"] = "1"
-os.environ.setdefault("BOOKBASE_DEMO_MODE", "1")
-os.environ.setdefault("BOOKBASE_SECRET_KEY", "bookbase-production-session-signing-key-minimum-32-chars")
 
 # Add backend directory to sys.path
 root_dir = Path(__file__).resolve().parent.parent

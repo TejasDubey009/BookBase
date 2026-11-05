@@ -6,10 +6,10 @@ export default function MyRequestsTab({ bookRequests, onOpenBookRequest }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-medium text-ink">
-            My Curriculum Acquisition Requests
+            My Book Requests
           </h2>
           <p className="mt-0.5 text-sm text-muted">
-            Track status updates on book requests submitted to library administration.
+            Books you've asked the library to add, and where each request stands.
           </p>
         </div>
         <button
@@ -29,7 +29,7 @@ export default function MyRequestsTab({ bookRequests, onOpenBookRequest }) {
                 <th className="py-3 px-4">Domain</th>
                 <th className="py-3 px-4">Submitted Date</th>
                 <th className="py-3 px-4">Notes</th>
-                <th className="py-3 px-4 text-right">Acquisition Status</th>
+                <th className="py-3 px-4 text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line text-body">

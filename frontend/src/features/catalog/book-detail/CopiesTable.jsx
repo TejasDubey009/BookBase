@@ -5,11 +5,11 @@ export default function CopiesTable({ book }) {
       <div className="px-4 py-3 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-medium text-ink">
-            Shelf Copies &amp; Accession Details
+            Physical Copies
           </h3>
         </div>
         <span className="text-xs text-muted">
-          Accession Records
+          Each has a unique code on its label
         </span>
       </div>
 
@@ -18,7 +18,7 @@ export default function CopiesTable({ book }) {
           <thead className="text-xs text-muted border-b border-line [&_th]:font-normal">
             <tr>
               <th className="py-2.5 px-4">Copy ID</th>
-              <th className="py-2.5 px-4">Barcode</th>
+              <th className="py-2.5 px-4">Copy Code</th>
               <th className="py-2.5 px-4">Shelf Location</th>
               <th className="py-2.5 px-4">Condition</th>
               <th className="py-2.5 px-4">Status</th>

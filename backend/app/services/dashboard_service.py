@@ -1,6 +1,5 @@
 """The student shelf: a patron's loans, history, reservations and acquisition requests."""
 import datetime
-import sqlite3
 from typing import List
 
 from app.core.clock import utc_now
@@ -11,6 +10,7 @@ from app.db.queries import (
     QUEUE_POSITION_SUBQUERY,
     USER_PROFILE_SELECT,
 )
+from app.db.types import Connection, Cursor
 from app.schemas.circulation import LoanOut
 from app.schemas.dashboard import UserDashboardOut, UserWaitlistCard
 from app.services.circulation_service import overdue_days
@@ -19,7 +19,7 @@ from app.services.mappers import to_active_loan_out, to_book_request_out, to_loa
 LOAN_HISTORY_LIMIT = 20
 
 
-def _active_loans(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
+def _active_loans(cursor: Cursor, user_id: int) -> List[LoanOut]:
     now = utc_now()
     cursor.execute(
         f"{LOAN_DETAILS_SELECT} WHERE cl.user_id = ? AND cl.return_date IS NULL ORDER BY cl.due_date ASC",
@@ -28,7 +28,7 @@ def _active_loans(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
     return [to_active_loan_out(row, now) for row in cursor.fetchall()]
 
 
-def _loan_history(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
+def _loan_history(cursor: Cursor, user_id: int) -> List[LoanOut]:
     cursor.execute(
         f"{LOAN_DETAILS_SELECT} WHERE cl.user_id = ? AND cl.return_date IS NOT NULL ORDER BY cl.return_date DESC LIMIT ?",
         (user_id, LOAN_HISTORY_LIMIT)
@@ -49,7 +49,7 @@ def _loan_history(cursor: sqlite3.Cursor, user_id: int) -> List[LoanOut]:
     return loans
 
 
-def _waitlist_cards(cursor: sqlite3.Cursor, user_id: int) -> List[UserWaitlistCard]:
+def _waitlist_cards(cursor: Cursor, user_id: int) -> List[UserWaitlistCard]:
     cursor.execute(
         f"""
         SELECT
@@ -84,7 +84,7 @@ def _waitlist_cards(cursor: sqlite3.Cursor, user_id: int) -> List[UserWaitlistCa
     ]
 
 
-def get_user_dashboard(db: sqlite3.Connection, user_id: int) -> UserDashboardOut:
+def get_user_dashboard(db: Connection, user_id: int) -> UserDashboardOut:
     cursor = db.cursor()
 
     cursor.execute(f"{USER_PROFILE_SELECT} WHERE user_id = ?", (user_id,))

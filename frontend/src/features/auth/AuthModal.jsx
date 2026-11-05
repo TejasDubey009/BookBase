@@ -19,6 +19,10 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   const [regEnrollmentNo, setRegEnrollmentNo] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regStaffCode, setRegStaffCode] = useState('');
+
+  const isStaff = roleTab === 'admin';
 
   // With demo mode on, start from the first seeded account for the role. Otherwise start blank.
   const resetSignInFields = (role) => {
@@ -58,7 +62,11 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!regFullName.trim() || !regEnrollmentNo.trim() || !regEmail.trim() || !regPassword) {
-      showToast({ type: 'error', message: 'All fields are required for student registration.' });
+      showToast({ type: 'error', message: 'Please fill in every field.' });
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      showToast({ type: 'error', message: 'The two passwords do not match.' });
       return;
     }
     setLoading(true);
@@ -67,10 +75,13 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
         full_name: regFullName.trim(),
         enrollment_no: regEnrollmentNo.trim().toUpperCase(),
         email: regEmail.trim().toLowerCase(),
-        password: regPassword.trim(),
+        password: regPassword,
+        ...(isStaff ? { staff_code: regStaffCode } : {}),
       });
       onLoginSuccess(resp);
       setRegPassword('');
+      setRegConfirmPassword('');
+      setRegStaffCode('');
       showToast({ 
         type: 'success', 
         message: `Account created! Welcome to BookBase, ${resp.user.full_name} (${resp.user.enrollment_no})!` 
@@ -96,12 +107,14 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
           <div className="flex items-center gap-3">
             <div>
               <h2 className="text-base font-medium text-ink">
-                {authMode === 'signup' ? 'Student Sign Up & Registration' : roleTab === 'admin' ? 'Library Staff Sign In' : 'Library Portal Sign In'}
+                {authMode === 'signup'
+                  ? (isStaff ? 'Create a Staff Account' : 'Create a Student Account')
+                  : (isStaff ? 'Library Staff Sign In' : 'Sign In')}
               </h2>
               <p className="text-xs text-muted">
-                {authMode === 'signup' 
-                  ? 'Get your enrollment credentials for on-premise & remote access' 
-                  : 'Log in with your Enrollment Number and password'}
+                {authMode === 'signup'
+                  ? 'One account works on the Library Kiosk and the Student Portal'
+                  : 'Use your Enrollment Number and password'}
               </p>
             </div>
           </div>
@@ -113,15 +126,12 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
           </button>
         </div>
 
-        {/* Auth Mode Tabs: students can also register. Staff accounts are not self-service. */}
-        {roleTab === 'member' && (
-          <div className="px-6 pt-4">
-            <div className="flex items-center gap-6 border-b border-line">
-              <TabButton active={authMode === 'signin'} onClick={() => setAuthMode('signin')}>Sign In</TabButton>
-              <TabButton active={authMode === 'signup'} onClick={() => setAuthMode('signup')}>Sign Up (New Student)</TabButton>
-            </div>
+        <div className="px-6 pt-4">
+          <div className="flex items-center gap-6 border-b border-line">
+            <TabButton active={authMode === 'signin'} onClick={() => setAuthMode('signin')}>Sign In</TabButton>
+            <TabButton active={authMode === 'signup'} onClick={() => setAuthMode('signup')}>Sign Up</TabButton>
           </div>
-        )}
+        </div>
 
         {authMode === 'signin' ? (
           <SignInPanel
@@ -139,6 +149,7 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
           />
         ) : (
           <SignUpPanel
+            isStaff={isStaff}
             handleRegister={handleRegister}
             regFullName={regFullName}
             setRegFullName={setRegFullName}
@@ -148,6 +159,10 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
             setRegEmail={setRegEmail}
             regPassword={regPassword}
             setRegPassword={setRegPassword}
+            regConfirmPassword={regConfirmPassword}
+            setRegConfirmPassword={setRegConfirmPassword}
+            regStaffCode={regStaffCode}
+            setRegStaffCode={setRegStaffCode}
             showPassword={showPassword}
             setShowPassword={setShowPassword}
             loading={loading}

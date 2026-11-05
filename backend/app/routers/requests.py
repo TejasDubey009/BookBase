@@ -1,4 +1,3 @@
-import sqlite3
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, status
@@ -6,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 from app.core.auth import get_current_user, require_admin
 from app.core.security import CurrentUser, resolve_target_user
 from app.db.connection import get_db
+from app.db.types import Connection
 from app.schemas.requests import BookRequestCreate, BookRequestOut, BookRequestUpdate
 from app.services import request_service
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/requests", tags=["Student Book Requests & Acquisitio
 def get_book_requests(
     user_id: Optional[int] = None,
     actor: CurrentUser = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
 ):
     """Members see their own requests. Admins see everyone's unless they filter by user_id."""
     target_user_id = user_id if actor.is_admin else resolve_target_user(actor, user_id)
@@ -27,7 +27,7 @@ def get_book_requests(
 def create_book_request(
     payload: BookRequestCreate,
     actor: CurrentUser = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
 ):
     return request_service.create_request(db, payload, user_id=resolve_target_user(actor, payload.user_id))
 
@@ -36,6 +36,6 @@ def create_book_request(
 def update_book_request_status(
     request_id: int,
     payload: BookRequestUpdate,
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
 ):
     return request_service.update_status(db, request_id, payload)

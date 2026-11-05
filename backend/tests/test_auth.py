@@ -7,8 +7,9 @@ import pytest
 
 from app import config
 from app.core.security import hash_password, issue_token, needs_rehash, verify_password
+from app.db import seed, seed_data
 from app.services import auth_service
-from tests.conftest import ADMIN_ID, TEJAS_ID, bearer, login
+from tests.conftest import ADMIN_ID, ADMIN_PASSWORD, STAFF_CODE, TEJAS_ID, bearer, login
 
 API = "/api/v1"
 SECRET = "test-only-signing-key-that-is-long-enough-for-hs256"
@@ -194,16 +195,84 @@ def test_demo_users_lists_only_seeded_accounts_and_no_private_fields(client, mon
     accounts = client.get(f"{API}/auth/demo-users").json()
 
     assert [a["enrollment_no"] for a in accounts] == [
-        "ADMIN001", "CSBS2022001", "CSBS2022002", "CSBS2022003", "CSBS2022004", "CSBS2022005"
+        "CSBS2022001", "CSBS2022002", "CSBS2022003", "CSBS2022004", "CSBS2022005"
     ]
+    assert {a["role"] for a in accounts} == {"member"}
     assert set(accounts[0]) == {"enrollment_no", "full_name", "role", "sample_password"}
 
 
-@pytest.mark.parametrize("account", ["ADMIN001", "CSBS2022001"])
-def test_demo_users_passwords_actually_sign_in(client, monkeypatch, account):
+def test_demo_users_passwords_actually_sign_in(client, monkeypatch):
     monkeypatch.setattr(auth_service, "DEMO_MODE", True)
-    entry = next(a for a in client.get(f"{API}/auth/demo-users").json() if a["enrollment_no"] == account)
+    entry = next(a for a in client.get(f"{API}/auth/demo-users").json() if a["enrollment_no"] == "CSBS2022001")
     assert login(client, entry["enrollment_no"], entry["sample_password"], role=entry["role"])
+
+
+def _register(client, **overrides):
+    fields = {"full_name": "Riya", "enrollment_no": "CSBS2023019", "email": "riya@example.com", "password": "riya-password"}
+    return client.post(f"{API}/auth/register", json={**fields, **overrides})
+
+
+def test_the_old_librarian_password_no_longer_signs_in(client):
+    response = client.post(f"{API}/auth/login", json={"identifier": "ADMIN001", "password": "admin123", "role": "admin"})
+    assert response.status_code == 401
+
+
+def test_the_librarians_password_is_not_in_the_seed_data():
+    assert next(user for user in seed_data.USERS if user[1] == "ADMIN001")[3] is None
+
+
+def test_a_new_database_generates_and_prints_the_librarians_password(monkeypatch, capsys):
+    monkeypatch.setattr(seed, "SEED_ADMIN_PASSWORD", "")
+    stored = seed._librarian_password_hash(current_hash=None)
+    printed = [line.strip() for line in capsys.readouterr().out.splitlines() if line.startswith("    ")]
+    assert len(printed) == 1 and verify_password(printed[0], stored)
+
+
+def test_reset_keeps_the_librarians_password_when_none_is_configured(client, admin, monkeypatch):
+    monkeypatch.setattr(seed, "SEED_ADMIN_PASSWORD", "")
+    assert client.post(f"{API}/admin/reset-demo", headers=admin).status_code == 200
+    assert login(client, "ADMIN001", ADMIN_PASSWORD, role="admin")
+
+
+@pytest.mark.parametrize("overrides,message", [
+    ({"email": "not-an-email"}, "valid email"),
+    ({"password": "short"}, "at least 8"),
+    ({"enrollment_no": "A"}, "Enrollment number"),
+    ({"full_name": "  "}, "required"),
+])
+def test_sign_up_validates_its_fields(client, overrides, message):
+    response = _register(client, **overrides)
+    assert response.status_code == 400
+    assert message in response.json()["detail"]
+
+
+def test_sign_up_without_a_staff_code_creates_a_student(client):
+    response = _register(client)
+    assert response.status_code == 201
+    assert response.json()["user"]["role"] == "member"
+
+
+def test_a_role_in_the_sign_up_request_is_ignored(client):
+    assert _register(client, role="admin").json()["user"]["role"] == "member"
+
+
+def test_sign_up_with_the_staff_code_creates_a_librarian(client):
+    response = _register(client, staff_code=STAFF_CODE)
+    assert response.status_code == 201
+    assert response.json()["user"]["role"] == "admin"
+    assert client.get(f"{API}/admin/overview", headers=bearer(response.json()["token"])).status_code == 200
+
+
+@pytest.mark.parametrize("wrong_code", ["wrong-code", "", "  ", "código"])
+def test_sign_up_with_a_wrong_staff_code_is_refused(client, db, wrong_code):
+    assert _register(client, staff_code=wrong_code).status_code == 403
+    assert db.execute("SELECT COUNT(*) FROM users WHERE enrollment_no = 'CSBS2023019'").fetchone()[0] == 0
+
+
+def test_no_librarian_can_sign_up_when_no_staff_code_is_configured(client, monkeypatch):
+    monkeypatch.setattr(auth_service, "STAFF_SIGNUP_CODE", "")
+    assert _register(client, staff_code="").status_code == 403
+    assert _register(client, staff_code=STAFF_CODE).status_code == 403
 
 
 def test_cors_only_answers_configured_origins(client):

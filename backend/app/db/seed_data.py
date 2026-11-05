@@ -5,7 +5,8 @@ prescribed textbook paired with its O'Reilly professional counterpart.
 
 # (full_name, enrollment_no, email, password, role, max_books_quota, outstanding_fines)
 USERS = [
-    ("Admin", "ADMIN001", "admin@bookbase.in", "admin123", "admin", 10, 0.0),
+    # No password here: see seed.py. This repository is public, so a librarian's must not be in it.
+    ("Admin", "ADMIN001", "admin@bookbase.in", None, "admin", 10, 0.0),
     ("Tejas", "CSBS2022001", "tejas@bookbase.in", "member123", "member", 4, 0.0),
     ("Akash", "CSBS2022002", "akash@bookbase.in", "member123", "member", 4, 0.0),
     ("Sai Kartikeya", "CSBS2022003", "saikartikeya@bookbase.in", "member123", "member", 4, 0.0),

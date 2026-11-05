@@ -1,14 +1,15 @@
-import sqlite3
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_admin
 from app.core.security import CurrentUser, resolve_target_user
 from app.db.connection import get_db
+from app.db.types import Connection
 from app.schemas.circulation import (
     CheckoutRequest,
     CheckoutResponse,
-    ReturnRequest,
+    ReturnRequestConfirm,
+    ReturnRequestCreate,
     ReturnResponse,
     WaitlistRequest,
     WaitlistResponse,
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/circulation", tags=["Circulation & FIFO Waitlist Eng
 def checkout_book(
     payload: CheckoutRequest,
     actor: CurrentUser = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
 ):
     """
     Atomic Checkout Transaction:
@@ -40,7 +41,7 @@ def checkout_book(
 def join_waitlist(
     payload: WaitlistRequest,
     actor: CurrentUser = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
 ):
     """
     FIFO Waitlist Registration:
@@ -57,7 +58,7 @@ def join_waitlist(
 def cancel_waitlist(
     reservation_id: int,
     actor: CurrentUser = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
 ):
     """
     Cancels an active waitlist reservation.
@@ -65,24 +66,49 @@ def cancel_waitlist(
     return circulation_service.cancel_reservation(db, reservation_id, actor)
 
 
-@router.post("/return", response_model=ReturnResponse)
-def return_book(
-    payload: ReturnRequest,
+@router.post("/return-requests", status_code=status.HTTP_201_CREATED)
+def raise_return_request(
+    payload: ReturnRequestCreate,
     actor: CurrentUser = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db)
+    db: Connection = Depends(get_db)
+):
+    """
+    A student asks to return a loan, giving the code on the book's label and its condition.
+    The request then appears in the admin portal, where a librarian confirms or rejects it.
+    """
+    return circulation_service.raise_return_request(db, payload, actor)
+
+
+@router.post("/return-requests/{return_request_id}/confirm", response_model=ReturnResponse)
+def confirm_return_request(
+    return_request_id: int,
+    payload: ReturnRequestConfirm,
+    actor: CurrentUser = Depends(require_admin),
+    db: Connection = Depends(get_db)
 ):
     """
     CRITICAL WAITLIST HANDOFF & AUTO-ASSIGNMENT ENGINE:
-    1. Verify loan is active (return_date IS NULL).
-    2. Mark return_date = NOW(), assess fines (daily rate in config.py) if overdue.
-    3. Query waitlist_reservations for oldest 'Waiting' entry (ORDER BY created_at ASC, reservation_id ASC LIMIT 1).
-    4. IF waitlisted user found (#1 in line):
+    1. Verify the request is still pending.
+    2. Mark return_date = when the student raised it, assess fines (rate and day limit in config.py) if overdue.
+    3. Record the condition the librarian saw on the loan and the copy.
+    4. Query waitlist_reservations for oldest 'Waiting' entry (ORDER BY created_at ASC, reservation_id ASC LIMIT 1).
+    5. IF waitlisted user found (#1 in line):
        - Mark waitlist row as 'Fulfilled' (fulfilled_at = NOW()).
        - Auto-insert new row into circulation_loans for this copy_id and waitlisted_user_id (issued_via = 'Waitlist Auto-Fulfill').
        - Keep copy status as 'Issued'.
        - Log TRIGGER_WAITLIST_AUTO_CHECKOUT in db_audit_logs.
-    5. ELSE (no waitlist):
+    6. ELSE (no waitlist):
        - Set copy status = 'Available'.
        - Log TX_RETURN_TO_SHELF in db_audit_logs.
     """
-    return circulation_service.return_book(db, payload, actor)
+    return circulation_service.confirm_return_request(db, return_request_id, payload, actor)
+
+
+@router.post("/return-requests/{return_request_id}/reject")
+def reject_return_request(
+    return_request_id: int,
+    actor: CurrentUser = Depends(require_admin),
+    db: Connection = Depends(get_db)
+):
+    """Rejects a request raised without the book being handed in. The loan stays active."""
+    return circulation_service.reject_return_request(db, return_request_id, actor)

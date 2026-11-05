@@ -3,8 +3,8 @@ export default function ShelfPortalBanner({ portal }) {
   return (
     <p className="mt-1 text-sm text-muted max-w-2xl">
       {portal === 'kiosk'
-        ? 'Self-service return station enabled. You can return physical copies directly below.'
-        : 'Remote inquiry portal. Due dates are shown below. Physical returns must be processed at the Central Library Kiosk.'}
+        ? 'Returning a book? Request the return below, then hand the book to a librarian.'
+        : 'Your due dates, reservations and book requests. To return a book, use the Library Kiosk.'}
     </p>
   );
 }

@@ -1,11 +1,11 @@
 import { AlertTriangle, Search } from 'lucide-react';
 import BookCover from '../../../components/books/BookCover';
 
-function BorrowerCard({ b, loadingActionId, onReturnBook, fetchOverview }) {
+function BorrowerCard({ b }) {
   const isActive = b.status === 'Active';
   const isOverdue = b.status === 'Overdue';
   const isReturned = b.status === 'Returned';
-  const isActionLoading = loadingActionId === b.loan_id;
+  const conditionChanged = isReturned && b.condition_at_return !== b.condition_at_issue;
 
   return (
     <div className="py-3 first:pt-0 last:pb-0">
@@ -28,32 +28,25 @@ function BorrowerCard({ b, loadingActionId, onReturnBook, fetchOverview }) {
         </div>
       </div>
 
-      <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-muted">
-        <span>Copy: {b.barcode} · Issued: {b.issue_date?.slice(0, 10)} | Due: {b.due_date?.slice(0, 10)}</span>
-
-        {(isActive || isOverdue) && (
-          <button
-            disabled={isActionLoading}
-            onClick={() => onReturnBook(b.loan_id).then(fetchOverview)}
-            className="px-2.5 py-1 rounded border border-field text-body hover:bg-shelf whitespace-nowrap transition-colors disabled:opacity-50"
-          >
-            {isActionLoading ? 'Processing...' : 'Return Copy'}
-          </button>
-        )}
+      <div className="mt-1.5 text-xs text-muted">
+        Copy: {b.barcode} · Issued: {b.issue_date?.slice(0, 10)} | Due: {b.due_date?.slice(0, 10)}
+      </div>
+      <div className={`mt-0.5 text-xs ${conditionChanged ? 'font-medium text-danger' : 'text-muted'}`}>
+        Condition: {b.condition_at_issue}{isReturned ? ` → ${b.condition_at_return}` : ''}
       </div>
     </div>
   );
 }
 
 /** Each curriculum title beside the searchable history of students who have borrowed it. */
-export default function BorrowersMatrixTab({ groupedBooks, matrixSearch, onSearchMatrix, loadingActionId, onReturnBook, fetchOverview }) {
+export default function BorrowersMatrixTab({ groupedBooks, matrixSearch, onSearchMatrix }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-medium text-ink">Book Title &amp; Student Borrowers Correlation Matrix</h2>
+          <h2 className="text-base font-medium text-ink">Books &amp; Borrowers</h2>
           <p className="mt-0.5 text-sm text-muted max-w-2xl">
-            Primary column displays the curriculum title; secondary column displays the searchable history of all students who have borrowed copies of that title.
+            Each book beside everyone who has borrowed it, which copy they had, and the condition it left and came back in.
           </p>
         </div>
 
@@ -81,8 +74,8 @@ export default function BorrowersMatrixTab({ groupedBooks, matrixSearch, onSearc
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-muted border-b border-line [&_th]:font-normal">
             <tr>
-              <th className="py-3 px-5 w-2/5">1. Curriculum Book Title &amp; Inventory Status</th>
-              <th className="py-3 px-5 w-3/5">2. Student Borrowers (Searchable List: Active, Overdue &amp; Returned)</th>
+              <th className="py-3 px-5 w-2/5">Book</th>
+              <th className="py-3 px-5 w-3/5">Borrowers</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -116,13 +109,7 @@ export default function BorrowersMatrixTab({ groupedBooks, matrixSearch, onSearc
                     {item.borrowers && item.borrowers.length > 0 ? (
                       <div className="divide-y divide-line">
                         {item.borrowers.map((b) => (
-                          <BorrowerCard
-                            key={b.loan_id}
-                            b={b}
-                            loadingActionId={loadingActionId}
-                            onReturnBook={onReturnBook}
-                            fetchOverview={fetchOverview}
-                          />
+                          <BorrowerCard key={b.loan_id} b={b} />
                         ))}
                       </div>
                     ) : (

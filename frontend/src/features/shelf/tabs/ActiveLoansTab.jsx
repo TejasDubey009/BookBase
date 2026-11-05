@@ -1,10 +1,9 @@
 import { AlertTriangle } from 'lucide-react';
 import BookCover from '../../../components/books/BookCover';
 
-function LoanCard({ loan, portal, onSelectBook, onReturnBook, fetchDashboard, loadingActionId }) {
+function LoanCard({ loan, portal, onSelectBook, onReturnBook }) {
   const isOverdue = loan.is_overdue;
   const isAutoFulfill = loan.issued_via === 'Waitlist Auto-Fulfill';
-  const isLoading = loadingActionId === loan.loan_id;
 
   return (
     <div className="p-5 border border-line -ml-px -mt-px flex flex-col justify-between gap-4">
@@ -25,7 +24,7 @@ function LoanCard({ loan, portal, onSelectBook, onReturnBook, fetchDashboard, lo
             {loan.title}
           </h3>
           <p className="mt-0.5 text-xs text-muted truncate">by {loan.author}</p>
-          <p className="mt-2.5 text-xs text-body">{loan.barcode}</p>
+          <p className="mt-2.5 text-xs text-body">Copy {loan.barcode} · {loan.condition_at_issue}</p>
           <p className="mt-0.5 text-xs text-muted truncate">{loan.shelf_location}</p>
           <p className="mt-2.5 text-xs text-muted">
             {isAutoFulfill ? <span className="text-body">Auto-Issued from Queue #1</span> : 'Direct Checkout'} · Loan #{loan.loan_id}
@@ -53,37 +52,40 @@ function LoanCard({ loan, portal, onSelectBook, onReturnBook, fetchDashboard, lo
           </div>
           <div className="text-right shrink-0">
             <div className="text-sm text-ink tabular-nums">{loan.due_date.slice(0, 10)}</div>
-            <div className="mt-0.5 text-xs text-muted">Target Date</div>
+            <div className="mt-0.5 text-xs text-muted">Due Date</div>
           </div>
         </div>
 
-        {/* Books can only physically be returned at the kiosk */}
-        {portal === 'kiosk' ? (
+        {/* A return starts at the kiosk, and a librarian then confirms it */}
+        {loan.return_request_id ? (
+          <p className="text-xs text-body">
+            Return requested on {loan.return_requested_at.slice(0, 10)}. Waiting for a librarian to confirm.
+          </p>
+        ) : portal === 'kiosk' ? (
           <button
-            disabled={isLoading}
-            onClick={() => onReturnBook(loan.loan_id).then(fetchDashboard)}
-            className="w-full py-1.5 px-3 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+            onClick={() => onReturnBook(loan)}
+            className="w-full py-1.5 px-3 rounded bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors"
           >
-            {isLoading ? 'Processing Return...' : 'Return Book at Kiosk'}
+            Request Return
           </button>
         ) : (
-          <p className="text-xs text-muted">To return, drop off this physical copy at the Central Library Kiosk.</p>
+          <p className="text-xs text-muted">To return this copy, request it at the Library Kiosk.</p>
         )}
       </div>
     </div>
   );
 }
 
-export default function ActiveLoansTab({ activeLoans, portal, onSelectBook, onReturnBook, fetchDashboard, loadingActionId }) {
+export default function ActiveLoansTab({ activeLoans, portal, onSelectBook, onReturnBook }) {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-medium text-ink">Active Borrowings &amp; Return Deadlines</h2>
+          <h2 className="text-base font-medium text-ink">{portal === 'kiosk' ? 'Return a Book' : 'My Loans'}</h2>
           <p className="mt-0.5 text-sm text-muted">
             {portal === 'kiosk'
-              ? 'Self-service physical return station. Click Return to deposit copy.'
-              : 'Track your loan countdowns and return deadlines. Returns must be dropped off at the Library Kiosk.'}
+              ? 'You will be asked for the code on the book\'s label and its condition.'
+              : 'Your books and when each one is due.'}
           </p>
         </div>
         <span className="text-sm text-muted whitespace-nowrap tabular-nums">{activeLoans.length} Borrowed</span>
@@ -103,8 +105,6 @@ export default function ActiveLoansTab({ activeLoans, portal, onSelectBook, onRe
               portal={portal}
               onSelectBook={onSelectBook}
               onReturnBook={onReturnBook}
-              fetchDashboard={fetchDashboard}
-              loadingActionId={loadingActionId}
             />
           ))}
         </div>

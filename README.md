@@ -1,6 +1,6 @@
 # 📚 BookBase — B.Tech CSBS Curriculum Library & Book Bank
 
-A production-grade Smart Library Management System & Academic Book Bank tailored for the **5-Year Integrated B.Tech in Computer Science and Business Systems (CSBS)** curriculum.
+A Smart Library Management System & Academic Book Bank tailored for the **5-Year Integrated B.Tech in Computer Science and Business Systems (CSBS)** curriculum.
 
 Features prescribed curriculum textbooks paired with corresponding **O'Reilly Professional Editions**, real-time physical inventory tracking, automated waitlist reservations, and genuine library circulation desk workflows.
 
@@ -20,26 +20,25 @@ Features prescribed curriculum textbooks paired with corresponding **O'Reilly Pr
    - Physical inventory (`book_copies`) is strictly decoupled from abstract intellectual property (`books`).
    - Dynamic Availability: Availability count is **never stored as a static column**; it is dynamically computed in real-time from `COUNT(copy_id) WHERE status = 'Available'`, preventing anomalies and race conditions.
 2. **ACID Concurrency & Row-Level Locking:**
-   - Atomic checkout uses `SELECT copy_id FROM book_copies WHERE book_id = :id AND status = 'Available' LIMIT 1 FOR UPDATE` to prevent double-booking under concurrent load.
+   - On PostgreSQL, every checkout, waitlist join and return first locks that book's row with `SELECT book_id FROM books WHERE book_id = :id FOR UPDATE`, and a checkout also locks the student's row to protect their quota. Concurrent requests for a title run one after the other.
+   - On the local SQLite fallback, `BEGIN IMMEDIATE` holds the whole database instead.
    - Storage-engine level uniqueness guarantee:
      ```sql
      CREATE UNIQUE INDEX idx_single_active_loan_per_copy 
      ON circulation_loans(copy_id) 
      WHERE return_date IS NULL;
      ```
-3. **Automated Reservation Promotion on Return:**
-   - When any patron returns a book (`POST /api/v1/circulation/return`), the backend transaction checks `waitlist_reservations` for the oldest waiting student (`ORDER BY created_at ASC, reservation_id ASC LIMIT 1`).
+3. **Student-Raised Returns & Automated Reservation Promotion:**
+   - A student raises a return at the Library Kiosk, giving the code on the book's label and its condition. It reaches the admin portal only then.
+   - When a librarian confirms it (`POST /api/v1/circulation/return-requests/{id}/confirm`), the backend transaction checks `waitlist_reservations` for the oldest waiting student (`ORDER BY created_at ASC, reservation_id ASC LIMIT 1`).
    - If a waiting student exists, the copy is atomically assigned to the #1 waitlisted student (`issued_via = 'Waitlist Auto-Fulfill'`).
    - The waitlist entry is marked `Fulfilled`, and the remaining queue positions auto-reindex.
-4. **Authentic Authentication & User Sessions:**
-   - Real-world login for Central Librarian and B.Tech CSBS Students:
-     - **Library Staff:** `admin@bookbase.in` (password: `admin123`)
-     - **Student Patrons:**
-       - `tejas@bookbase.in` (password: `member123`)
-       - `akash@bookbase.in` (password: `member123`)
-       - `saikartikeya@bookbase.in` (password: `member123`)
-       - `biba@bookbase.in` (password: `member123`)
-       - `jaidanya@bookbase.in` (password: `member123`)
+4. **Unique Physical Copies:**
+   - Each physical book has one unique code (`book_copies.barcode`). Borrowing asks for it, and the loan links that copy to the student's profile.
+   - Each loan records the copy's condition when it left and when it came back, so damage traces to one borrower even when two identical books come back on the same day.
+5. **Accounts & Access:**
+   - Anyone can sign up as a student. Signing up as library staff needs a staff code that only the server knows.
+   - The seeded librarian's password is never in this repository. See [Seeded User Accounts](#-seeded-user-accounts-bookbasein).
 
 ---
 
@@ -161,34 +160,53 @@ pip install -r backend/requirements.txt
 python3 run.py
 ```
 
+With no further setup this uses a local SQLite file, seeded on first run. **The terminal prints the librarian's generated password once**, on that first run. To use Supabase instead, see below.
+
 The three portals are separate websites, each with its own address and its own sign-in. They share one API and one database, so a book borrowed at the kiosk shows up in the admin portal the next time that page loads its data.
 
 | Site | Address | For | Signs in |
 | :--- | :--- | :--- | :--- |
-| **Library Kiosk** | [http://localhost:3001](http://localhost:3001) | Borrowing and returning at the library | Students |
+| **Library Kiosk** | [http://localhost:3001](http://localhost:3001) | Borrowing, and raising return requests, at the library | Students |
 | **Student Portal** | [http://localhost:3002](http://localhost:3002) | Browsing, due dates and requests from anywhere | Students |
-| **Admin Portal** | [http://localhost:3003](http://localhost:3003) | Circulation desk, fines and catalog management | Library staff |
+| **Admin Portal** | [http://localhost:3003](http://localhost:3003) | Confirming returns, fines and catalog management | Library staff |
 | **REST API docs** | [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) | Interactive API reference | Not applicable |
 
 Ports are set in `frontend/portals.json`. To work on one site, run the API and then `npm run dev:kiosk`, `dev:student` or `dev:admin` in `frontend/`.
+
+### Using Supabase
+
+Supabase runs the database, and its dashboard shows the tables, rows and queries in a browser.
+
+1. Create a project at [supabase.com](https://supabase.com). Choose a region near you, such as Mumbai, because each request has to reach it.
+2. Press **Connect** and copy the **Transaction pooler** connection string.
+3. Copy `backend/.env.example` to `backend/.env`. Set `DATABASE_URL` to that string, with your database password in place of `[YOUR-PASSWORD]`. If the password contains symbols such as `@` or `/`, URL-encode them.
+4. Set `BOOKBASE_ADMIN_PASSWORD` in the same file, then run `python3 run.py`.
+
+The first run creates the tables and fills them. `/api/v1/health` then reports `"database": "PostgreSQL"`, and the tables appear in the dashboard's **Table Editor**. `database/demo_queries.sql` has queries to paste into its **SQL Editor**, and **Database → Schema Visualizer** draws the ER diagram.
+
+Row Level Security is on for every table, with no policies. That closes Supabase's automatic public REST API, and the app and the dashboard still see everything.
+
+To fall back to SQLite, for example if the network fails during a demo, comment out `DATABASE_URL` in `backend/.env` and restart.
 
 ### Deploying to Vercel
 
 One Vercel project serves all three sites and the API. `npm run build` produces `frontend/dist/kiosk`, `student` and `admin`.
 
-1. Set `BOOKBASE_SECRET_KEY` in the project's environment variables (see Configuration below).
-2. In the project's **Settings → Domains**, add one domain per portal with `kiosk`, `student` or `admin` in its name, such as `bookbase-kiosk.vercel.app` or `admin.your-college.edu`. `vercel.json` picks the site from that word.
+1. Set up Supabase first, and run the app once locally against it so the tables exist.
+2. Set `DATABASE_URL` and `BOOKBASE_SECRET_KEY` in the project's environment variables (see Configuration below). The API refuses to start on Vercel without them.
+3. In the project's **Settings → Domains**, add one domain per portal with `kiosk`, `student` or `admin` in its name, such as `bookbase-kiosk.vercel.app` or `admin.yourcollege.edu`. Each of those addresses then opens its own site.
 
 Without those domains, the same sites are at `/kiosk/`, `/student/` and `/admin/` on the project's main address, which opens the kiosk.
-
-> **Data on Vercel is not durable.** The API's SQLite file lives in `/tmp`, which belongs to a single function instance and is discarded with it. Changes can disappear, and instances may not see each other's changes, so the sites are not reliably in sync there. Real use needs a hosted database.
 
 ### Configuration
 
 | Environment variable | When | What it does |
 | :--- | :--- | :--- |
+| `DATABASE_URL` | **Required on Vercel** | The PostgreSQL connection string, such as Supabase's. Without it, local runs use a SQLite file. |
 | `BOOKBASE_SECRET_KEY` | **Required on Vercel** | Signs session tokens, and must be at least 32 characters. The API refuses to start on Vercel without it. `run.py` generates one for each run, so local sessions end when you restart it. |
-| `BOOKBASE_DEMO_MODE` | Optional | `1` lists the seeded accounts and their passwords in the sign-in modal. `run.py` turns this on. Everywhere else it is off unless you set it. |
+| `BOOKBASE_ADMIN_PASSWORD` | Recommended | The seeded librarian's password. It also changes the password on an existing database when the API starts. If unset, one is generated when the database is first seeded and printed once. |
+| `BOOKBASE_STAFF_SIGNUP_CODE` | Optional | Whoever knows this code can sign up as library staff on the admin portal. If unset, nobody can. |
+| `BOOKBASE_DEMO_MODE` | Optional | `1` lists the seeded student accounts and their passwords in the sign-in modal, never a librarian's. `run.py` turns this on. Everywhere else it is off unless you set it, and it should stay off on a public deployment. |
 | `BOOKBASE_TOKEN_TTL_MINUTES` | Optional | How long a session lasts. Defaults to 480 (8 hours). |
 | `BOOKBASE_CORS_ORIGINS` | Optional | Comma-separated origins allowed to call the API directly from another site. Defaults to the three local portal addresses. Each portal reaches the API through its own address, locally and on Vercel, so it needs nothing here. |
 
@@ -198,12 +216,20 @@ Generate a signing key with:
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
+Locally these can all live in `backend/.env`, which is never committed. `backend/.env.example` lists them.
+
 ### Running the Tests
 
 ```bash
 cd backend
 pip install -r requirements-dev.txt
 python -m pytest
+```
+
+The tests use a throwaway SQLite file and never read `backend/.env`. To run them on PostgreSQL, point `TEST_DATABASE_URL` at a server where they may create and drop databases, using a database name that contains `test`:
+
+```bash
+TEST_DATABASE_URL=postgresql://postgres@localhost:5432/bookbase_test python -m pytest
 ```
 
 ---
@@ -214,15 +240,15 @@ python -m pytest
 BookBase/
 ├── api/index.py               # Vercel serverless entry point (wraps the FastAPI app)
 ├── backend/
-│   ├── bookbase.db            # Pre-seeded SQLite database
-│   ├── tests/                 # Permission, token and password tests
+│   ├── .env.example           # Local settings to copy to .env, including the Supabase connection string
+│   ├── tests/                 # Permissions, sign-up, circulation and concurrency tests
 │   └── app/
 │       ├── main.py            # FastAPI app: middleware, error handling, router registration
 │       ├── config.py          # Database location and lending policy (loan length, fines, quotas)
 │       ├── routers/           # HTTP layer only: each route validates input and calls one service
 │       ├── services/          # Business logic: checkout, FIFO waitlist, fines, dashboards
 │       ├── schemas/           # Pydantic request/response models, one file per domain
-│       ├── db/                # Connections, transactions, schema, shared SQL, audit log, seed data
+│       ├── db/                # Connections (PostgreSQL or SQLite), transactions, schema, shared SQL, audit log, seed data
 │       └── core/              # Cross-cutting helpers: errors, clock, password hashing, session tokens, auth dependencies
 ├── frontend/
 │   ├── portals.json           # The three sites: each one's port, title and app
@@ -233,8 +259,10 @@ BookBase/
 │       ├── hooks/             # Shared state: session, catalog, circulation actions, toasts
 │       ├── constants/         # Book categories and portal metadata
 │       ├── components/        # Shared UI: layout (navbar, footer), ui (tabs, toast), books (cover)
-│       └── features/          # One folder per area: admin, auth, catalog, requests, shelf
-└── database/schema_postgres.sql   # PostgreSQL schema (the app itself runs on SQLite)
+│       └── features/          # One folder per area: admin, auth, catalog, circulation, requests, shelf
+└── database/
+    ├── ER_DIAGRAM.md          # The ER diagram and the rules the database enforces
+    └── demo_queries.sql       # Queries to run in the Supabase SQL Editor during a presentation
 ```
 
 ### Where new code goes
@@ -246,6 +274,7 @@ BookBase/
 | A lending rule (fine rate, quota, loan length) | `config.py`, then `services/circulation_service.py` |
 | An API error | Raise a class from `core/errors.py` in a service; `main.py` turns it into the HTTP response |
 | SQL used by more than one service | `db/queries.py` (SQL used once stays in its service) |
+| A table or column | Both `db/schema_postgres.sql` and `SQLITE_SCHEMA_SQL` in `db/schema.py`. A test fails if they differ |
 | A screen on one portal | Build it in `features/`, then add it to that portal's app in `frontend/src/portals/`. Only screens a portal's app imports end up in that site's build |
 | A tab in the librarian or student view | `features/admin/tabs/` or `features/shelf/tabs/`, registered in that area's view |
 
@@ -255,11 +284,11 @@ Tabs unmount when you switch away from them, so state that must survive a tab sw
 
 ## 👥 Seeded User Accounts (`@bookbase.in`)
 
-These passwords are public demo credentials, and they work on any deployment that uses the committed `bookbase.db`, whether or not demo mode is on.
+The student passwords below are public demo credentials, on any database seeded from this repository. The librarian's password isn't in the repository: it is `BOOKBASE_ADMIN_PASSWORD` if you set it, and otherwise is generated and printed once when the database is first seeded.
 
 | Persona | Role | Email | Password | Pre-Seeded State |
 | :--- | :--- | :--- | :--- | :--- |
-| **Admin** | Admin | `admin@bookbase.in` | `admin123` | Full circulation desk & inventory management |
+| **Admin** | Admin | `admin@bookbase.in` | See above | Full circulation desk & inventory management |
 | **Tejas** | Member | `tejas@bookbase.in` | `member123` | Borrowed DDIA & CLRS (CLRS overdue) |
 | **Akash** | Member | `akash@bookbase.in` | `member123` | Queue #1 on CLRS |
 | **Sai Kartikeya** | Member | `saikartikeya@bookbase.in` | `member123` | Clean account ready to borrow / reserve |
@@ -290,8 +319,8 @@ Sign in with `POST /api/v1/auth/login`, then send the token it returns as `Autho
 | Route | Access | Purpose |
 | :--- | :--- | :--- |
 | `POST /api/v1/auth/login` | Public | Authenticate and receive a session token |
-| `POST /api/v1/auth/register` | Public | Create a student account and receive a session token |
-| `GET /api/v1/auth/demo-users` | Public | Seeded accounts for the sign-in modal. Empty unless `BOOKBASE_DEMO_MODE` is on |
+| `POST /api/v1/auth/register` | Public | Create a student account and receive a session token. With a valid `staff_code`, creates a librarian account |
+| `GET /api/v1/auth/demo-users` | Public | Seeded student accounts for the sign-in modal. Empty unless `BOOKBASE_DEMO_MODE` is on |
 | `GET /api/v1/auth/me` | Signed in | The caller's profile, quota and fine status |
 
 ### Catalog & 3NF Inventory
@@ -309,11 +338,13 @@ Sign in with `POST /api/v1/auth/login`, then send the token it returns as `Autho
 
 | Route | Access | Purpose |
 | :--- | :--- | :--- |
-| `POST /api/v1/circulation/checkout` | Owner or admin | Atomic loan checkout with row-level locking |
+| `POST /api/v1/circulation/checkout` | Owner or admin | Atomic loan checkout with row-level locking. `barcode` names the physical copy |
 | `POST /api/v1/circulation/waitlist` | Owner or admin | Atomic FIFO queue registration |
 | `DELETE /api/v1/circulation/waitlist/{id}` | Owner or admin | Cancel waiting reservation |
-| `POST /api/v1/circulation/return` | Owner or admin | Return processing with overdue fine calculation & automated FIFO waitlist handoff |
-| `GET /api/v1/policy` | Public | The lending rules from `config.py`: `overdue_fine_rate_per_day`, `loan_duration_days` and `max_loans_per_user`. The footer shows them before sign-in. `max_loans_per_user` is the quota new accounts get; checkout enforces each account's stored `max_books_quota`, so changing it does not affect existing accounts |
+| `POST /api/v1/circulation/return-requests` | Owner or admin | Raise a return, with `loan_id`, the `barcode` on the book's label, its `condition` and optional `notes` |
+| `POST /api/v1/circulation/return-requests/{id}/confirm` | Admin | Complete the return with the `condition` the librarian saw: fine calculation & automated FIFO waitlist handoff |
+| `POST /api/v1/circulation/return-requests/{id}/reject` | Admin | Refuse a request. The loan stays active and the student can raise it again |
+| `GET /api/v1/policy` | Public | The lending rules from `config.py`: `overdue_fine_rate_per_day`, `max_fine_days`, `loan_duration_days`, `max_loans_per_user` and `copy_conditions`. The footer shows them before sign-in. `max_loans_per_user` is the quota new accounts get; checkout enforces each account's stored `max_books_quota`, so changing it does not affect existing accounts |
 
 ### Student Book Requests
 
@@ -328,7 +359,7 @@ Sign in with `POST /api/v1/auth/login`, then send the token it returns as `Autho
 | Route | Access | Purpose |
 | :--- | :--- | :--- |
 | `GET /api/v1/users/{user_id}/dashboard` | Owner or admin | Active loans, countdowns, waitlist cards, borrowing history |
-| `GET /api/v1/admin/overview` | Admin | Library KPIs, circulation desk table, global waitlist lineup, student fines ledger |
+| `GET /api/v1/admin/overview` | Admin | Library KPIs, pending return requests, circulation desk table, global waitlist lineup, student fines ledger |
 | `GET /api/v1/admin/grouped-books?search=` | Admin | Curriculum titles with their borrower history |
 | `POST /api/v1/admin/settle-fine` | Admin | Record a fine payment. Send `user_id` and optionally `amount_settled`; leaving it out settles the full balance. An amount above the balance is capped at the balance. Returns `400` if the amount is zero or negative |
 | `POST /api/v1/admin/reset-demo` | Admin | 1-click database reset to initial demo state. Ends every other session and returns a new token for the caller |

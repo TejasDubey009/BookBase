@@ -30,6 +30,8 @@ ADMIN_ROUTES = [
     ("POST", "/books/1/copies"),
     ("PATCH", "/requests/1"),
     ("GET", "/telemetry/logs"),
+    ("POST", "/circulation/return-requests/1/confirm"),
+    ("POST", "/circulation/return-requests/1/reject"),
 ]
 
 
@@ -49,7 +51,7 @@ def _protected_routes():
 @pytest.mark.parametrize("method,prefix,template", _protected_routes())
 def test_every_protected_route_rejects_anonymous_callers(client, method, prefix, template):
     path = template.replace("{", "").replace("}", "")
-    for name in ("user_id", "book_id", "request_id", "reservation_id"):
+    for name in ("return_request_id", "user_id", "book_id", "request_id", "reservation_id"):
         path = path.replace(name, "1")
 
     response = client.request(method, f"{prefix}{path}", json={})
@@ -62,7 +64,7 @@ def test_the_route_walk_actually_finds_the_protected_routes():
     found = set(_protected_routes())
     for prefix in (API, "/v1"):
         assert ("POST", prefix, "/admin/reset-demo") in found
-        assert ("POST", prefix, "/circulation/return") in found
+        assert ("POST", prefix, "/circulation/return-requests") in found
         assert ("GET", prefix, "/users/{user_id}/dashboard") in found
         assert ("GET", prefix, "/telemetry/logs") in found
 
@@ -190,25 +192,45 @@ def _active_loan(db, book_id: int):
     ).fetchone()
 
 
-@pytest.mark.parametrize("field", ["loan_id", "copy_id"])
-def test_member_cannot_return_someone_elses_loan(client, akash, db, field):
+def _return_request(db, loan_id: int) -> dict:
+    barcode = db.execute(
+        """
+        SELECT bc.barcode FROM circulation_loans cl
+        JOIN book_copies bc ON cl.copy_id = bc.copy_id
+        WHERE cl.loan_id = ?
+        """,
+        (loan_id,)
+    ).fetchone()[0]
+    return {"loan_id": loan_id, "barcode": barcode, "condition": "Good"}
+
+
+def test_member_cannot_raise_a_return_for_someone_elses_loan(client, akash, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
 
-    response = client.post(f"{API}/circulation/return", headers=akash, json={field: loan[field]})
+    response = client.post(f"{API}/circulation/return-requests", headers=akash, json=_return_request(db, loan["loan_id"]))
 
     assert response.status_code == 403
     assert _active_loan(db, DDIA_BOOK_ID)["loan_id"] == loan["loan_id"]
 
 
-def test_member_can_return_their_own_loan(client, tejas, db):
+def test_member_can_raise_a_return_for_their_own_loan(client, tejas, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
-    assert client.post(f"{API}/circulation/return", headers=tejas, json={"loan_id": loan["loan_id"]}).status_code == 200
-    assert _active_loan(db, DDIA_BOOK_ID) is None
+    response = client.post(f"{API}/circulation/return-requests", headers=tejas, json=_return_request(db, loan["loan_id"]))
+    assert response.status_code == 201
 
 
-def test_admin_can_return_anyones_loan(client, admin, db):
+def test_member_cannot_confirm_their_own_return(client, tejas, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
-    assert client.post(f"{API}/circulation/return", headers=admin, json={"loan_id": loan["loan_id"]}).status_code == 200
+    raised = client.post(f"{API}/circulation/return-requests", headers=tejas, json=_return_request(db, loan["loan_id"])).json()
+
+    confirm = client.post(
+        f"{API}/circulation/return-requests/{raised['return_request_id']}/confirm",
+        headers=tejas,
+        json={"condition": "Good"}
+    )
+
+    assert confirm.status_code == 403
+    assert _active_loan(db, DDIA_BOOK_ID)["loan_id"] == loan["loan_id"]
 
 
 def _akash_reservation(db) -> int:

@@ -12,7 +12,7 @@ export default function Footer({ policy }) {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-2">
         <p>Central Library Circulation Desk · Open Today {hoursToday()}</p>
         <p>
-          {policy.loanDays}-day loans · {policy.fineRate} / day if overdue ·{' '}
+          {policy.loanDays}-day loans · {policy.fineRule} if overdue ·{' '}
           <a href="mailto:library.desk@bookbase.in" className="text-body hover:text-ink underline underline-offset-2 transition-colors">
             library.desk@bookbase.in
           </a>

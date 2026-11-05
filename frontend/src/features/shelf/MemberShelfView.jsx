@@ -17,7 +17,6 @@ export default function MemberShelfView({
   onCancelWaitlist,
   onSelectBook,
   onOpenBookRequest,
-  loadingActionId,
   showToast,
   policy
 }) {
@@ -53,31 +52,36 @@ export default function MemberShelfView({
   const bookRequests = dashboard?.book_requests || [];
   const user = dashboard?.user || currentUser;
 
+  // The kiosk's shelf is only for returning books. Everything else lives on the Student Portal.
+  const showTabs = portal !== 'kiosk';
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <PatronSummaryCard user={user} activeLoansCount={activeLoans.length} onOpenBookRequest={onOpenBookRequest}>
         <ShelfPortalBanner portal={portal} />
       </PatronSummaryCard>
 
-      <div className="flex items-center gap-6 border-b border-line overflow-x-auto no-scrollbar">
-        <TabButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')}>
-          <span>Active Borrowings &amp; Due Dates ({activeLoans.length})</span>
-        </TabButton>
-        <TabButton active={activeTab === 'waitlists'} onClick={() => setActiveTab('waitlists')}>
-          <span>Course Reservations ({waitlists.length})</span>
-        </TabButton>
-        <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')}>
-          <span>My Acquisition Requests ({bookRequests.length})</span>
-        </TabButton>
-        <TabButton id="helpdesk-tab" active={activeTab === 'helpdesk'} onClick={() => setActiveTab('helpdesk')}>
-          <span>Library Help Desk</span>
-        </TabButton>
-        {history.length > 0 && (
-          <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
-            <span>Circulation History</span>
+      {showTabs && (
+        <div className="flex items-center gap-6 border-b border-line overflow-x-auto no-scrollbar">
+          <TabButton active={activeTab === 'loans'} onClick={() => setActiveTab('loans')}>
+            <span>My Loans ({activeLoans.length})</span>
           </TabButton>
-        )}
-      </div>
+          <TabButton active={activeTab === 'waitlists'} onClick={() => setActiveTab('waitlists')}>
+            <span>Reservations ({waitlists.length})</span>
+          </TabButton>
+          <TabButton active={activeTab === 'requests'} onClick={() => setActiveTab('requests')}>
+            <span>Book Requests ({bookRequests.length})</span>
+          </TabButton>
+          <TabButton id="helpdesk-tab" active={activeTab === 'helpdesk'} onClick={() => setActiveTab('helpdesk')}>
+            <span>Help Desk</span>
+          </TabButton>
+          {history.length > 0 && (
+            <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
+              <span>History</span>
+            </TabButton>
+          )}
+        </div>
+      )}
 
       {activeTab === 'loans' && (
         <ActiveLoansTab
@@ -85,8 +89,6 @@ export default function MemberShelfView({
           portal={portal}
           onSelectBook={onSelectBook}
           onReturnBook={onReturnBook}
-          fetchDashboard={fetchDashboard}
-          loadingActionId={loadingActionId}
         />
       )}
       {activeTab === 'waitlists' && (

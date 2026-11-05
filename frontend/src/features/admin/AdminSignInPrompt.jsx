@@ -2,11 +2,11 @@
 export default function AdminSignInPrompt({ currentUser, onOpenAuth }) {
   return (
     <div className="max-w-md mx-auto py-20 text-center">
-      <h1 className="font-serif text-[28px] leading-snug text-ink">Librarian sign-in required</h1>
+      <h1 className="font-serif text-[28px] leading-snug text-ink">Library staff only</h1>
       <p className="mt-2 text-sm text-muted">
         {currentUser
           ? `${currentUser.full_name} is signed in with a student account, which can't open the circulation desk.`
-          : 'Sign in with a Library Staff account to open the circulation desk.'}
+          : 'Sign in with a staff account to open the circulation desk. New staff can sign up with a staff code.'}
       </p>
       <button
         onClick={onOpenAuth}

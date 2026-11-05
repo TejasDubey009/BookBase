@@ -1,15 +1,15 @@
 import { AlertTriangle } from 'lucide-react';
 
-export default function CirculationTab({ allLoans, filterOverdue, setFilterOverdue, loadingActionId, onReturnBook, fetchOverview }) {
+export default function CirculationTab({ allLoans, filterOverdue, setFilterOverdue }) {
   const loans = filterOverdue ? allLoans.filter(l => l.is_overdue) : allLoans;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-medium text-ink">Active Circulation Loans ({allLoans.length})</h2>
+          <h2 className="text-base font-medium text-ink">Active Loans ({allLoans.length})</h2>
           <p className="mt-0.5 text-sm text-muted max-w-2xl">
-            Process physical copy returns, calculate applicable overdue charges, and allocate to next pending student reservation.
+            Every book currently with a student. A return appears under Return Requests once the student raises it.
           </p>
         </div>
 
@@ -35,11 +35,11 @@ export default function CirculationTab({ allLoans, filterOverdue, setFilterOverd
             <tr>
               <th className="py-3 px-4">Title / Author</th>
               <th className="py-3 px-4">Borrowing Patron (Roll No)</th>
-              <th className="py-3 px-4">Copy Barcode</th>
+              <th className="py-3 px-4">Copy Code</th>
               <th className="py-3 px-4">Shelf Location</th>
               <th className="py-3 px-4">Channel</th>
               <th className="py-3 px-4">Due Date &amp; Status</th>
-              <th className="py-3 px-4 text-right">Desk Action</th>
+              <th className="py-3 px-4 text-right">Return</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line text-body">
@@ -53,7 +53,6 @@ export default function CirculationTab({ allLoans, filterOverdue, setFilterOverd
               loans.map((loan) => {
                 const isOverdue = loan.is_overdue;
                 const isAutoFulfill = loan.issued_via === 'Waitlist Auto-Fulfill';
-                const isActionLoading = loadingActionId === loan.loan_id;
 
                 return (
                   <tr key={loan.loan_id}>
@@ -70,7 +69,10 @@ export default function CirculationTab({ allLoans, filterOverdue, setFilterOverd
                       <div className="text-xs text-muted">{loan.user_email}</div>
                     </td>
 
-                    <td className="py-3 px-4 whitespace-nowrap">{loan.barcode}</td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <div>{loan.barcode}</div>
+                      <div className="text-xs text-muted">Issued {loan.condition_at_issue}</div>
+                    </td>
 
                     <td className="py-3 px-4 text-xs text-muted">{loan.shelf_location}</td>
 
@@ -89,14 +91,10 @@ export default function CirculationTab({ allLoans, filterOverdue, setFilterOverd
                       )}
                     </td>
 
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        disabled={isActionLoading}
-                        onClick={() => onReturnBook(loan.loan_id).then(fetchOverview)}
-                        className="px-2.5 py-1 rounded border border-field text-xs text-body hover:bg-shelf whitespace-nowrap transition-colors disabled:opacity-50"
-                      >
-                        {isActionLoading ? 'Processing...' : 'Process Return'}
-                      </button>
+                    <td className="py-3 px-4 text-right text-xs whitespace-nowrap">
+                      {loan.return_request_id
+                        ? <span className="font-medium text-ink">Requested</span>
+                        : <span className="text-muted">Not requested</span>}
                     </td>
                   </tr>
                 );

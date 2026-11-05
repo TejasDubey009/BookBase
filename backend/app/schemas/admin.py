@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from app.schemas.circulation import LoanOut, WaitlistEntryOut
+from app.schemas.circulation import LoanOut, ReturnRequestOut, WaitlistEntryOut
 from app.schemas.requests import BookRequestOut
 
 
@@ -35,6 +35,8 @@ class BookBorrowerOut(BaseModel):
     fine_assessed: float
     accrued_fine: float  # Active loan: what returning it now would charge. Returned loan: what was charged.
     days_remaining: int
+    condition_at_issue: str
+    condition_at_return: Optional[str] = None
 
 
 class GroupedBookBorrowersOut(BaseModel):
@@ -61,12 +63,14 @@ class AdminKPIs(BaseModel):
     waitlist_queue_depth: int
     total_fines: float
     pending_requests_count: int = 0
+    pending_returns_count: int = 0
 
 
 class AdminOverviewOut(BaseModel):
     kpis: AdminKPIs
     active_loans: List[LoanOut]
     waitlist_queue: List[WaitlistEntryOut]
+    return_requests: List[ReturnRequestOut] = []
     book_requests: List[BookRequestOut] = []
     grouped_books: Optional[List[GroupedBookBorrowersOut]] = None
     student_fines: List[StudentFineOut] = []

@@ -1,11 +1,11 @@
 """Read access to the db_audit_logs telemetry table."""
-import sqlite3
 from typing import List, Optional
 
+from app.db.types import Connection
 from app.schemas.telemetry import AuditLogOut
 
 
-def list_logs(db: sqlite3.Connection, limit: int, operation_type: Optional[str] = None) -> List[AuditLogOut]:
+def list_logs(db: Connection, limit: int, operation_type: Optional[str] = None) -> List[AuditLogOut]:
     cursor = db.cursor()
     query = "SELECT log_id, operation_type, sql_summary, affected_entities, created_at FROM db_audit_logs WHERE 1=1"
     params = []

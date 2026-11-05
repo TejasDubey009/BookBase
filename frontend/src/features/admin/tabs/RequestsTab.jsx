@@ -6,10 +6,10 @@ export default function RequestsTab({ bookRequests, onUpdateStatus }) {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-medium text-ink">
-            Student Curriculum Acquisition Requests ({bookRequests.length})
+            Student Book Requests ({bookRequests.length})
           </h2>
           <p className="mt-0.5 text-sm text-muted">
-            Books requested by students when copies are exhausted or new curriculum textbooks are required.
+            Books students have asked the library to add, or to buy more copies of.
           </p>
         </div>
       </div>

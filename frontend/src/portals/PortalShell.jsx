@@ -4,6 +4,8 @@ import Navbar from '../components/layout/navbar/Navbar';
 import Toast from '../components/ui/Toast';
 import AuthModal from '../features/auth/AuthModal';
 import BookDetailModal from '../features/catalog/book-detail/BookDetailModal';
+import BorrowCopyModal from '../features/circulation/BorrowCopyModal';
+import ReturnRequestModal from '../features/circulation/ReturnRequestModal';
 import BookRequestModal from '../features/requests/BookRequestModal';
 import { useCatalog } from '../hooks/useCatalog';
 import { useCirculationActions } from '../hooks/useCirculationActions';
@@ -51,15 +53,18 @@ export default function PortalShell({ portal, children }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestPrefillBook, setRequestPrefillBook] = useState(null);
+  const [bookToBorrow, setBookToBorrow] = useState(null);
+  const [loanToReturn, setLoanToReturn] = useState(null);
 
   const openAuthModal = () => setIsAuthModalOpen(true);
 
-  const { loadingActionId, handleBorrow, handleJoinWaitlist, handleReturn, handleCancelWaitlist } = useCirculationActions({
+  const { loadingActionId, handleBorrow, handleJoinWaitlist, handleCancelWaitlist } = useCirculationActions({
     activePortal: portal,
     currentUser,
     showToast,
     notifyDataChanged,
     openAuthModal,
+    openBorrowDialog: setBookToBorrow,
   });
 
   const handleOpenBookRequest = (prefillBook = null) => {
@@ -83,7 +88,7 @@ export default function PortalShell({ portal, children }) {
     onSelectBook: selectBook,
     onBorrow: handleBorrow,
     onJoinWaitlist: handleJoinWaitlist,
-    onReturn: handleReturn,
+    onReturn: setLoanToReturn,
     onRequestBook: handleOpenBookRequest,
     loadingActionId,
     onOpenBookRequest: () => handleOpenBookRequest(),
@@ -92,11 +97,10 @@ export default function PortalShell({ portal, children }) {
   const shelfProps = {
     currentUser,
     portal,
-    onReturnBook: handleReturn,
+    onReturnBook: setLoanToReturn,
     onCancelWaitlist: handleCancelWaitlist,
     onSelectBook: selectBook,
     onOpenBookRequest: () => handleOpenBookRequest(),
-    loadingActionId,
     showToast,
     policy: lendingPolicy,
   };
@@ -123,8 +127,6 @@ export default function PortalShell({ portal, children }) {
           currentView,
           catalogProps,
           shelfProps,
-          loadingActionId,
-          handleReturn,
           showToast,
           notifyDataChanged,
           lastEventTimestamp,
@@ -143,10 +145,29 @@ export default function PortalShell({ portal, children }) {
           onClose={() => setSelectedBookId(null)}
           onBorrow={handleBorrow}
           onJoinWaitlist={handleJoinWaitlist}
-          onReturn={handleReturn}
+          onReturn={setLoanToReturn}
           onCancelWaitlist={handleCancelWaitlist}
           onRequestBook={handleOpenBookRequest}
           loadingActionId={loadingActionId}
+        />
+      )}
+
+      {bookToBorrow && (
+        <BorrowCopyModal
+          book={bookToBorrow}
+          onClose={() => setBookToBorrow(null)}
+          onBorrowed={notifyDataChanged}
+          showToast={showToast}
+        />
+      )}
+
+      {loanToReturn && (
+        <ReturnRequestModal
+          loan={loanToReturn}
+          conditions={lendingPolicy.copyConditions}
+          onClose={() => setLoanToReturn(null)}
+          onRaised={notifyDataChanged}
+          showToast={showToast}
         />
       )}
 
@@ -158,7 +179,7 @@ export default function PortalShell({ portal, children }) {
         onSuccess={() => {
           showToast({
             type: 'success',
-            message: 'Book acquisition request submitted to library administration!'
+            message: 'Your book request has been sent to the library.'
           });
           notifyDataChanged();
         }}

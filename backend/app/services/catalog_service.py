@@ -1,11 +1,12 @@
 """Catalog search, book details and adding titles or physical copies."""
-import sqlite3
 from typing import Dict, List, Optional
 
+from app.config import COPY_CONDITIONS
 from app.core.clock import utc_now_iso
 from app.core.errors import BadRequestError, NotFoundError
 from app.db.audit import log_audit
 from app.db.queries import QUEUE_POSITION_SUBQUERY
+from app.db.types import Connection, Cursor, Row
 from app.schemas.books import (
     BookCreateRequest,
     BookDetailOut,
@@ -37,9 +38,10 @@ _COPY_WITH_BORROWER_SELECT = """
 """
 
 _USER_ACTIVE_LOANS_SELECT = """
-    SELECT cl.loan_id, bc.book_id, bc.barcode
+    SELECT cl.loan_id, bc.book_id, bc.barcode, rr.return_request_id
     FROM circulation_loans cl
     JOIN book_copies bc ON cl.copy_id = bc.copy_id
+    LEFT JOIN return_requests rr ON rr.loan_id = cl.loan_id AND rr.status = 'Pending'
     WHERE cl.user_id = ? AND cl.return_date IS NULL
 """
 
@@ -58,7 +60,7 @@ _BOOK_WAITLIST_SELECT = f"""
 """
 
 
-def _to_copy_out(row: sqlite3.Row, show_borrower: bool) -> CopyOut:
+def _to_copy_out(row: Row, show_borrower: bool) -> CopyOut:
     """Who holds a copy is a patron's private data. The due date alone is public."""
     return CopyOut(
         copy_id=row["copy_id"],
@@ -72,7 +74,7 @@ def _to_copy_out(row: sqlite3.Row, show_borrower: bool) -> CopyOut:
     )
 
 
-def _to_book_out(row: sqlite3.Row, copies: List[CopyOut], user_context: Optional[UserContext]) -> BookOut:
+def _to_book_out(row: Row, copies: List[CopyOut], user_context: Optional[UserContext]) -> BookOut:
     return BookOut(
         book_id=row["book_id"],
         isbn=row["isbn"],
@@ -91,18 +93,19 @@ def _to_book_out(row: sqlite3.Row, copies: List[CopyOut], user_context: Optional
     )
 
 
-def _to_user_context(active_loan: Optional[sqlite3.Row], waitlist_entry: Optional[sqlite3.Row]) -> UserContext:
+def _to_user_context(active_loan: Optional[Row], waitlist_entry: Optional[Row]) -> UserContext:
     return UserContext(
         has_active_loan=bool(active_loan),
         active_loan_id=active_loan["loan_id"] if active_loan else None,
         active_copy_barcode=active_loan["barcode"] if active_loan else None,
+        return_requested=bool(active_loan and active_loan["return_request_id"]),
         waitlist_position=waitlist_entry["queue_pos"] if waitlist_entry else None,
         waitlist_reservation_id=waitlist_entry["reservation_id"] if waitlist_entry else None
     )
 
 
 def list_books(
-    db: sqlite3.Connection,
+    db: Connection,
     search: Optional[str] = None,
     category: Optional[str] = None,
     availability: Optional[str] = None,
@@ -139,8 +142,8 @@ def list_books(
     book_rows = cursor.fetchall()
 
     # Pre-fetch the patron's active loans and waitlist spots once, rather than per book
-    active_loans_by_book: Dict[int, sqlite3.Row] = {}
-    waitlist_by_book: Dict[int, sqlite3.Row] = {}
+    active_loans_by_book: Dict[int, Row] = {}
+    waitlist_by_book: Dict[int, Row] = {}
     if user_id:
         cursor.execute(_USER_ACTIVE_LOANS_SELECT, (user_id,))
         active_loans_by_book = {row["book_id"]: row for row in cursor.fetchall()}
@@ -171,7 +174,7 @@ def list_books(
 
 
 def _book_waitlist(
-    cursor: sqlite3.Cursor,
+    cursor: Cursor,
     book_id: int,
     viewer_id: Optional[int],
     show_names: bool,
@@ -194,7 +197,7 @@ def _book_waitlist(
 
 
 def get_book_detail(
-    db: sqlite3.Connection,
+    db: Connection,
     book_id: int,
     user_id: Optional[int] = None,
     show_borrowers: bool = False,
@@ -223,7 +226,7 @@ def get_book_detail(
     )
 
 
-def create_book(db: sqlite3.Connection, payload: BookCreateRequest) -> dict:
+def create_book(db: Connection, payload: BookCreateRequest) -> dict:
     cursor = db.cursor()
     cursor.execute("SELECT book_id FROM books WHERE isbn = ?", (payload.isbn.strip(),))
     if cursor.fetchone():
@@ -276,7 +279,7 @@ def create_book(db: sqlite3.Connection, payload: BookCreateRequest) -> dict:
     return {"message": "Book and copies successfully created", "book_id": new_book_id}
 
 
-def add_copy(db: sqlite3.Connection, book_id: int, payload: CopyCreateRequest) -> dict:
+def add_copy(db: Connection, book_id: int, payload: CopyCreateRequest) -> dict:
     cursor = db.cursor()
     cursor.execute("SELECT book_id, title FROM books WHERE book_id = ?", (book_id,))
     if not cursor.fetchone():
@@ -285,6 +288,9 @@ def add_copy(db: sqlite3.Connection, book_id: int, payload: CopyCreateRequest) -
     cursor.execute("SELECT copy_id FROM book_copies WHERE barcode = ?", (payload.barcode.strip(),))
     if cursor.fetchone():
         raise BadRequestError(f"Barcode {payload.barcode} already in use")
+
+    if payload.condition and payload.condition not in COPY_CONDITIONS:
+        raise BadRequestError(f"Condition must be one of: {', '.join(COPY_CONDITIONS)}")
 
     cursor.execute(
         """

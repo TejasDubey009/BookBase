@@ -3,7 +3,7 @@ export default function CatalogPortalNotice({ portal }) {
   if (portal === 'kiosk') {
     return (
       <p className="mt-1 text-sm text-muted max-w-2xl">
-        Physical borrowing and return station. Click "Borrow Book at Kiosk" below to instantly check out an available copy.
+        Find a book, then enter the code on its label to borrow it.
       </p>
     );
   }
@@ -11,7 +11,7 @@ export default function CatalogPortalNotice({ portal }) {
   if (portal === 'student') {
     return (
       <p className="mt-1 text-sm text-muted max-w-2xl">
-        Remote catalogue inquiry. Checkout and returns are restricted to the Central Library Kiosk. You may submit book procurement requests below.
+        See what's available and join a waitlist. Borrowing and returns happen at the Library Kiosk.
       </p>
     );
   }

@@ -16,6 +16,7 @@ class RegisterRequest(BaseModel):
     enrollment_no: str
     email: str
     password: str
+    staff_code: Optional[str] = None  # Sent by the admin portal's sign-up form
 
 
 class UserOut(BaseModel):

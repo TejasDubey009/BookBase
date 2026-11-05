@@ -49,7 +49,7 @@ export default function HelpDeskTab({ policy }) {
               </div>
               <div className="flex justify-between">
                 <span>Late Return Penalty:</span>
-                <span className="text-ink">{policy.fineRate} / day / book</span>
+                <span className="text-ink">{policy.fineRule}, per book</span>
               </div>
             </div>
             <div className="pt-2 border-t border-line text-xs text-muted">
@@ -74,7 +74,7 @@ export default function HelpDeskTab({ policy }) {
               </div>
             </div>
             <div className="pt-2 border-t border-line text-xs text-muted">
-              For missing books, submit an Acquisition Request.
+              For missing books, send a book request.
             </div>
           </div>
         </div>

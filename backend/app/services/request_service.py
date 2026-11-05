@@ -1,11 +1,11 @@
 """Student book acquisition requests and their librarian review."""
-import sqlite3
 from typing import List, Optional
 
 from app.core.clock import utc_now_iso
 from app.core.errors import BadRequestError, NotFoundError
 from app.db.audit import log_audit
 from app.db.queries import BOOK_REQUEST_DETAILS_SELECT
+from app.db.types import Connection
 from app.schemas.requests import BookRequestCreate, BookRequestOut, BookRequestUpdate
 from app.services.mappers import enrollment_or_fallback, to_book_request_out
 
@@ -13,7 +13,7 @@ VALID_STATUSES = {"Pending", "Approved", "Procured", "Rejected"}
 DEFAULT_CATEGORY = "Core Computer Science"
 
 
-def list_requests(db: sqlite3.Connection, user_id: Optional[int] = None) -> List[BookRequestOut]:
+def list_requests(db: Connection, user_id: Optional[int] = None) -> List[BookRequestOut]:
     cursor = db.cursor()
     query = BOOK_REQUEST_DETAILS_SELECT
     params = []
@@ -26,7 +26,7 @@ def list_requests(db: sqlite3.Connection, user_id: Optional[int] = None) -> List
     return [to_book_request_out(row) for row in cursor.fetchall()]
 
 
-def create_request(db: sqlite3.Connection, payload: BookRequestCreate, user_id: int) -> BookRequestOut:
+def create_request(db: Connection, payload: BookRequestCreate, user_id: int) -> BookRequestOut:
     cursor = db.cursor()
 
     cursor.execute("SELECT user_id, full_name, enrollment_no, email FROM users WHERE user_id = ?", (user_id,))
@@ -79,7 +79,7 @@ def create_request(db: sqlite3.Connection, payload: BookRequestCreate, user_id: 
     )
 
 
-def update_status(db: sqlite3.Connection, request_id: int, payload: BookRequestUpdate) -> BookRequestOut:
+def update_status(db: Connection, request_id: int, payload: BookRequestUpdate) -> BookRequestOut:
     cursor = db.cursor()
     if payload.status not in VALID_STATUSES:
         raise BadRequestError(

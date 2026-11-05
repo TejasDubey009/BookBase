@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./database/schema_postgres.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/app/db/schema_postgres.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bookbase_user -d bookbase"]

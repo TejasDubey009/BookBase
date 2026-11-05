@@ -42,12 +42,11 @@ function AdminViews({ app }) {
 
       {app.currentView === 'admin-console' && (
         <AdminConsoleView
-          onReturnBook={app.handleReturn}
           onOpenAddBook={openAddBook}
           onResetDemo={handleResetDemo}
-          loadingActionId={app.loadingActionId}
           showToast={app.showToast}
           lastEventTimestamp={app.lastEventTimestamp}
+          notifyDataChanged={app.notifyDataChanged}
           policy={app.lendingPolicy}
         />
       )}

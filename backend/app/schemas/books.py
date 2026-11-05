@@ -18,6 +18,7 @@ class UserContext(BaseModel):
     has_active_loan: bool = False
     active_loan_id: Optional[int] = None
     active_copy_barcode: Optional[str] = None
+    return_requested: bool = False
     waitlist_position: Optional[int] = None
     waitlist_reservation_id: Optional[int] = None
 

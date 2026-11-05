@@ -35,7 +35,7 @@ function KioskNav({ currentView, setCurrentView, currentUser, onOpenBookRequest 
   return (
     <>
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
-        Kiosk Catalog (Borrow)
+        Borrow Books
       </NavTab>
 
       {currentUser && (
@@ -44,7 +44,7 @@ function KioskNav({ currentView, setCurrentView, currentUser, onOpenBookRequest 
         </ShelfTab>
       )}
 
-      <NavAction onClick={onOpenBookRequest}>Request Title</NavAction>
+      <NavAction onClick={onOpenBookRequest}>Request a Book</NavAction>
     </>
   );
 }
@@ -60,16 +60,16 @@ function StudentNav({ currentView, setCurrentView, currentUser, onOpenBookReques
   return (
     <>
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
-        Catalog (Browse Only)
+        Catalogue
       </NavTab>
 
       {currentUser && (
         <ShelfTab currentView={currentView} setCurrentView={setCurrentView} currentUser={currentUser}>
-          Due Dates &amp; Shelf
+          My Books
         </ShelfTab>
       )}
 
-      <NavAction onClick={onOpenBookRequest}>Book Request</NavAction>
+      <NavAction onClick={onOpenBookRequest}>Request a Book</NavAction>
       <NavAction onClick={openHelpDesk}>Help Desk</NavAction>
     </>
   );
@@ -84,7 +84,7 @@ function AdminNav({ currentView, setCurrentView, pendingRequestsCount }) {
       </NavTab>
 
       <NavTab active={currentView === 'catalog'} onClick={() => setCurrentView('catalog')}>
-        Public Catalog
+        Catalogue
       </NavTab>
     </>
   );
