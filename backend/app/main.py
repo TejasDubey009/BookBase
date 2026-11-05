@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import FRONTEND_DIST
+from app.config import CORS_ORIGINS, FRONTEND_DIST
 from app.core.errors import ServiceError
 from app.db.connection import get_raw_connection
 from app.db.seed import seed_database
@@ -31,19 +31,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for local Vite dev server and preview environments
+# Sessions travel in the Authorization header rather than cookies, so credentials stay off
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
 @app.exception_handler(ServiceError)
 async def handle_service_error(request: Request, exc: ServiceError) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=headers)
 
 
 # Register API v1 routers with both /api/v1 and /v1 (for transparent Vercel function routing)

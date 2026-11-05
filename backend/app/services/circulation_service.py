@@ -9,6 +9,7 @@ from typing import Optional
 from app.config import LOAN_DURATION_DAYS, MAX_OUTSTANDING_FINES_FOR_BORROWING, OVERDUE_FINE_RATE_PER_DAY
 from app.core.clock import utc_now, utc_now_iso
 from app.core.errors import BadRequestError, ConflictError, NotFoundError
+from app.core.security import CurrentUser, ensure_can_act_for
 from app.db.audit import log_audit
 from app.db.connection import immediate_transaction
 from app.db.queries import count_active_loans
@@ -130,14 +131,14 @@ def _insert_loan(
     return cursor.lastrowid, due_iso
 
 
-def checkout(db: sqlite3.Connection, payload: CheckoutRequest) -> CheckoutResponse:
+def checkout(db: sqlite3.Connection, payload: CheckoutRequest, user_id: int) -> CheckoutResponse:
     with immediate_transaction(db) as cursor:
-        _assert_can_borrow(cursor, payload.user_id, payload.book_id)
+        _assert_can_borrow(cursor, user_id, payload.book_id)
         copy = _select_available_copy(cursor, payload.book_id, payload.copy_id)
 
         now = utc_now()
         now_iso = now.isoformat()
-        loan_id, due_iso = _insert_loan(cursor, copy["copy_id"], payload.user_id, now, ISSUED_VIA_DIRECT)
+        loan_id, due_iso = _insert_loan(cursor, copy["copy_id"], user_id, now, ISSUED_VIA_DIRECT)
 
         cursor.execute("UPDATE book_copies SET status = 'Issued' WHERE copy_id = ?", (copy["copy_id"],))
 
@@ -148,16 +149,16 @@ def checkout(db: sqlite3.Connection, payload: CheckoutRequest) -> CheckoutRespon
             SET status = 'Fulfilled', fulfilled_at = ?
             WHERE book_id = ? AND user_id = ? AND status = 'Waiting'
             """,
-            (now_iso, payload.book_id, payload.user_id)
+            (now_iso, payload.book_id, user_id)
         )
 
         log_audit(
             db,
             "TX_CHECKOUT",
             f"SELECT copy_id FROM book_copies WHERE copy_id={copy['copy_id']} FOR UPDATE; "
-            f"INSERT INTO circulation_loans (loan_id={loan_id}, user_id={payload.user_id}, copy_id={copy['copy_id']}, due='{due_iso[:10]}'); "
+            f"INSERT INTO circulation_loans (loan_id={loan_id}, user_id={user_id}, copy_id={copy['copy_id']}, due='{due_iso[:10]}'); "
             f"UPDATE book_copies SET status='Issued' WHERE copy_id={copy['copy_id']};",
-            f"user_id: {payload.user_id}, book_id: {payload.book_id}, copy_id: {copy['copy_id']}, barcode: {copy['barcode']}, loan_id: {loan_id}"
+            f"user_id: {user_id}, book_id: {payload.book_id}, copy_id: {copy['copy_id']}, barcode: {copy['barcode']}, loan_id: {loan_id}"
         )
 
     return CheckoutResponse(
@@ -172,9 +173,9 @@ def checkout(db: sqlite3.Connection, payload: CheckoutRequest) -> CheckoutRespon
     )
 
 
-def join_waitlist(db: sqlite3.Connection, payload: WaitlistRequest) -> WaitlistResponse:
+def join_waitlist(db: sqlite3.Connection, payload: WaitlistRequest, user_id: int) -> WaitlistResponse:
     with immediate_transaction(db) as cursor:
-        cursor.execute("SELECT full_name FROM users WHERE user_id = ?", (payload.user_id,))
+        cursor.execute("SELECT full_name FROM users WHERE user_id = ?", (user_id,))
         if not cursor.fetchone():
             raise NotFoundError("User not found")
 
@@ -188,7 +189,7 @@ def join_waitlist(db: sqlite3.Connection, payload: WaitlistRequest) -> WaitlistR
                 f"There are {available_count} physical copies available right now! You can borrow directly instead of joining the waitlist."
             )
 
-        if _user_holds_title(cursor, payload.user_id, payload.book_id):
+        if _user_holds_title(cursor, user_id, payload.book_id):
             raise BadRequestError("You already have an active loan for this book.")
 
         cursor.execute(
@@ -196,7 +197,7 @@ def join_waitlist(db: sqlite3.Connection, payload: WaitlistRequest) -> WaitlistR
             SELECT reservation_id FROM waitlist_reservations
             WHERE book_id = ? AND user_id = ? AND status = 'Waiting'
             """,
-            (payload.book_id, payload.user_id)
+            (payload.book_id, user_id)
         )
         if cursor.fetchone():
             raise BadRequestError("You are already in the waitlist queue for this book.")
@@ -207,7 +208,7 @@ def join_waitlist(db: sqlite3.Connection, payload: WaitlistRequest) -> WaitlistR
             INSERT INTO waitlist_reservations (book_id, user_id, status, created_at)
             VALUES (?, ?, 'Waiting', ?)
             """,
-            (payload.book_id, payload.user_id, now_iso)
+            (payload.book_id, user_id, now_iso)
         )
         reservation_id = cursor.lastrowid
 
@@ -227,23 +228,23 @@ def join_waitlist(db: sqlite3.Connection, payload: WaitlistRequest) -> WaitlistR
         log_audit(
             db,
             "TX_WAITLIST_JOIN",
-            f"INSERT INTO waitlist_reservations (reservation_id={reservation_id}, book_id={payload.book_id}, user_id={payload.user_id}, status='Waiting'); "
+            f"INSERT INTO waitlist_reservations (reservation_id={reservation_id}, book_id={payload.book_id}, user_id={user_id}, status='Waiting'); "
             f"SELECT COUNT(*) as queue_position FROM waitlist_reservations WHERE book_id={payload.book_id} AND status='Waiting';",
-            f"user_id: {payload.user_id}, book_id: {payload.book_id}, reservation_id: {reservation_id}, queue_position: #{queue_pos}"
+            f"user_id: {user_id}, book_id: {payload.book_id}, reservation_id: {reservation_id}, queue_position: #{queue_pos}"
         )
 
     return WaitlistResponse(
         success=True,
         reservation_id=reservation_id,
         book_id=payload.book_id,
-        user_id=payload.user_id,
+        user_id=user_id,
         queue_position=queue_pos,
         status="Waiting",
         message=f"Joined waitlist! You are Queue #{queue_pos}. The next returned copy will be automatically assigned to you when you reach #1."
     )
 
 
-def cancel_reservation(db: sqlite3.Connection, reservation_id: int) -> dict:
+def cancel_reservation(db: sqlite3.Connection, reservation_id: int, actor: CurrentUser) -> dict:
     with immediate_transaction(db, error_prefix="") as cursor:
         cursor.execute(
             "SELECT reservation_id, book_id, user_id, status FROM waitlist_reservations WHERE reservation_id = ?",
@@ -252,6 +253,7 @@ def cancel_reservation(db: sqlite3.Connection, reservation_id: int) -> dict:
         res = cursor.fetchone()
         if not res or res["status"] != "Waiting":
             raise NotFoundError("Active reservation not found")
+        ensure_can_act_for(actor, res["user_id"])
 
         cursor.execute(
             "UPDATE waitlist_reservations SET status = 'Cancelled' WHERE reservation_id = ?",
@@ -395,9 +397,10 @@ def _return_to_shelf(
     )
 
 
-def return_book(db: sqlite3.Connection, payload: ReturnRequest) -> ReturnResponse:
+def return_book(db: sqlite3.Connection, payload: ReturnRequest, actor: CurrentUser) -> ReturnResponse:
     with immediate_transaction(db) as cursor:
         loan = _find_active_loan(cursor, payload)
+        ensure_can_act_for(actor, loan["user_id"])
 
         now = utc_now()
         fine = calculate_overdue_fine(datetime.datetime.fromisoformat(loan["due_date"]), now)

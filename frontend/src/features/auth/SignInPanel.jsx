@@ -46,41 +46,41 @@ export default function SignInPanel({
         </div>
       </div>
 
-      {/* Quick Demo Account Selector */}
-      <div>
-        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-          Quick Select {roleTab === 'admin' ? 'Staff' : 'Student'} Demo Account:
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {filteredUsers.map((u) => {
-            const isSelected =
-              identifier.toLowerCase() === (u.enrollment_no || '').toLowerCase() ||
-              identifier.toLowerCase() === u.email.toLowerCase();
-            return (
-              <button
-                key={u.user_id}
-                type="button"
-                onClick={() => handleQuickSelect(u)}
-                className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 ${
-                  isSelected
-                    ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-1 ring-indigo-500/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-800/40 text-slate-800 dark:text-slate-200'
-                }`}
-              >
-                <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center font-mono shrink-0">
-                  {u.full_name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold leading-tight truncate">{u.full_name}</div>
-                  <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-semibold truncate">
-                    {u.enrollment_no || 'CSBS'}
+      {/* Quick Demo Account Selector (only when the server has demo mode on) */}
+      {filteredUsers.length > 0 && (
+        <div>
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
+            Quick Select {roleTab === 'admin' ? 'Staff' : 'Student'} Demo Account:
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {filteredUsers.map((u) => {
+              const isSelected = identifier.toLowerCase() === u.enrollment_no.toLowerCase();
+              return (
+                <button
+                  key={u.enrollment_no}
+                  type="button"
+                  onClick={() => handleQuickSelect(u)}
+                  className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 ${
+                    isSelected
+                      ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 ring-1 ring-indigo-500/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-800/40 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center font-mono shrink-0">
+                    {u.full_name.charAt(0)}
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold leading-tight truncate">{u.full_name}</div>
+                    <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-semibold truncate">
+                      {u.enrollment_no}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="relative flex py-1 items-center">
         <div className="grow border-t border-slate-200 dark:border-slate-700"></div>
@@ -129,9 +129,11 @@ export default function SignInPanel({
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">
-            Demo Password: <code className="font-mono text-slate-600 dark:text-slate-300">{roleTab === 'admin' ? 'admin123' : 'member123'}</code>
-          </p>
+          {filteredUsers.length > 0 && (
+            <p className="text-[10px] text-slate-400 mt-1">
+              Demo Password: <code className="font-mono text-slate-600 dark:text-slate-300">{filteredUsers[0].sample_password}</code>
+            </p>
+          )}
         </div>
 
         <button

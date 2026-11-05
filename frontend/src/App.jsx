@@ -4,6 +4,7 @@ import Footer from './components/layout/Footer';
 import Navbar from './components/layout/navbar/Navbar';
 import Toast from './components/ui/Toast';
 import AdminConsoleView from './features/admin/AdminConsoleView';
+import AdminSignInPrompt from './features/admin/AdminSignInPrompt';
 import AuthModal from './features/auth/AuthModal';
 import AddBookModal from './features/catalog/AddBookModal';
 import BookDetailModal from './features/catalog/book-detail/BookDetailModal';
@@ -138,7 +139,11 @@ export default function App() {
           />
         )}
 
-        {currentView === 'admin-console' && (
+        {currentView === 'admin-console' && currentUser?.role !== 'admin' && (
+          <AdminSignInPrompt currentUser={currentUser} onOpenAuth={() => setIsAuthModalOpen(true)} />
+        )}
+
+        {currentView === 'admin-console' && currentUser?.role === 'admin' && (
           <AdminConsoleView
             onReturnBook={handleReturn}
             onOpenAddBook={() => setIsAddBookOpen(true)}

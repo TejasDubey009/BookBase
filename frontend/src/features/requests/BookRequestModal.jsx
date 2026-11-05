@@ -41,7 +41,6 @@ export default function BookRequestModal({ isOpen, onClose, currentUser, initial
 
     try {
       await api.createBookRequest({
-        user_id: currentUser.user_id,
         title: title.trim(),
         author: author.trim() || null,
         category: category,

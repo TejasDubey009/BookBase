@@ -6,6 +6,7 @@ Serves full React UI and REST API at http://127.0.0.1:8001
 """
 
 import os
+import secrets
 import sys
 import subprocess
 from pathlib import Path
@@ -32,6 +33,9 @@ print("► Database Engine:      3NF Normalized SQLite (PostgreSQL compatible)")
 print("=" * 70)
 
 os.environ["PYTHONPATH"] = str(BACKEND_DIR)
+# Local defaults: the seeded accounts show in the sign-in modal, and sessions survive auto-reloads
+os.environ.setdefault("BOOKBASE_DEMO_MODE", "1")
+os.environ.setdefault("BOOKBASE_SECRET_KEY", secrets.token_urlsafe(48))
 cmd = [python_cmd, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", str(port), "--reload"]
 
 try:

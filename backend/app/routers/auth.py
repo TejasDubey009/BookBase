@@ -3,6 +3,8 @@ from typing import List
 
 from fastapi import APIRouter, Depends, status
 
+from app.core.auth import get_current_user
+from app.core.security import CurrentUser
 from app.db.connection import get_db
 from app.schemas.auth import DemoUserOut, LoginRequest, LoginResponse, RegisterRequest, UserOut
 from app.services import auth_service
@@ -26,5 +28,5 @@ def get_demo_users(db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserOut)
-def get_current_user(user_id: int, db: sqlite3.Connection = Depends(get_db)):
-    return auth_service.get_profile(db, user_id)
+def get_my_profile(actor: CurrentUser = Depends(get_current_user), db: sqlite3.Connection = Depends(get_db)):
+    return auth_service.get_profile(db, actor.user_id)

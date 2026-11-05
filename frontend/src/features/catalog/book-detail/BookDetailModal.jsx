@@ -25,7 +25,7 @@ export default function BookDetailModal({
   useEffect(() => {
     if (!bookId) return;
     setLoading(true);
-    api.getBookDetail(bookId, currentUser?.user_id)
+    api.getBookDetail(bookId)
       .then((data) => {
         setBook(data);
         setLoading(false);

@@ -165,18 +165,17 @@ def seed_database(conn: sqlite3.Connection, force_reset: bool = False) -> None:
     if force_reset:
         _wipe_all_tables(conn)
 
-    # Book requests get sample data even if the database was initialized earlier
-    _seed_sample_requests_if_empty(conn)
-
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM users;")
-    if cursor.fetchone()[0] > 0 and not force_reset:
-        return
+    if cursor.fetchone()[0] == 0:
+        now = utc_now()
+        now_iso = now.isoformat()
+        _seed_users(conn, now_iso)
+        _seed_books(conn, now_iso)
+        _seed_copies(conn, now_iso)
+        _seed_circulation(conn, now)
+        print("Database successfully seeded with 5-Year B.Tech CSBS curriculum collection!")
 
-    now = utc_now()
-    now_iso = now.isoformat()
-    _seed_users(conn, now_iso)
-    _seed_books(conn, now_iso)
-    _seed_copies(conn, now_iso)
-    _seed_circulation(conn, now)
-    print("Database successfully seeded with 5-Year B.Tech CSBS curriculum collection!")
+    # Book requests get sample data even if the database was initialized earlier.
+    # They reference users, so this has to come after the users exist.
+    _seed_sample_requests_if_empty(conn)

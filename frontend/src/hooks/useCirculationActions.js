@@ -22,7 +22,7 @@ export function useCirculationActions({ activePortal, currentUser, showToast, no
     }
     setLoadingActionId(bookId);
     try {
-      const resp = await api.checkoutBook(currentUser.user_id, bookId);
+      const resp = await api.checkoutBook(bookId);
       showToast({ type: 'success', message: resp.message });
       notifyDataChanged();
     } catch (err) {
@@ -40,7 +40,7 @@ export function useCirculationActions({ activePortal, currentUser, showToast, no
     }
     setLoadingActionId(bookId);
     try {
-      const resp = await api.joinWaitlist(currentUser.user_id, bookId);
+      const resp = await api.joinWaitlist(bookId);
       showToast({ type: 'waitlist_promo', message: resp.message });
       notifyDataChanged();
     } catch (err) {
