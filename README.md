@@ -163,6 +163,45 @@ python3 run.py
 
 ---
 
+## 🗂️ Project Structure
+
+```text
+BookBase/
+├── api/index.py               # Vercel serverless entry point (wraps the FastAPI app)
+├── backend/
+│   ├── bookbase.db            # Pre-seeded SQLite database
+│   └── app/
+│       ├── main.py            # FastAPI app: middleware, error handling, router registration
+│       ├── config.py          # Database location and lending policy (loan length, fines, quotas)
+│       ├── routers/           # HTTP layer only: each route validates input and calls one service
+│       ├── services/          # Business logic: checkout, FIFO waitlist, fines, dashboards
+│       ├── schemas/           # Pydantic request/response models, one file per domain
+│       ├── db/                # Connections, transactions, schema, shared SQL, audit log, seed data
+│       └── core/              # Cross-cutting helpers: errors, clock, password hashing
+├── frontend/src/
+│   ├── App.jsx                # Composes the hooks, views and modals
+│   ├── api/                   # BookBase REST client and OpenLibrary lookup
+│   ├── hooks/                 # App-wide state: session, catalog, circulation actions, toasts
+│   ├── constants/             # Book categories and portal metadata
+│   ├── components/            # Shared UI: layout (navbar, footer), ui (tabs, toast), books (cover)
+│   └── features/              # One folder per area: admin, auth, catalog, requests, shelf
+└── database/schema_postgres.sql   # PostgreSQL schema (the app itself runs on SQLite)
+```
+
+### Where new code goes
+
+| To add or change... | Look in |
+| :--- | :--- |
+| An API endpoint | Route in `routers/`, logic in `services/`, models in `schemas/` |
+| A lending rule (fine rate, quota, loan length) | `config.py`, then `services/circulation_service.py` |
+| An API error | Raise a class from `core/errors.py` in a service; `main.py` turns it into the HTTP response |
+| SQL used by more than one service | `db/queries.py` (SQL used once stays in its service) |
+| A tab in the librarian or student view | `features/admin/tabs/` or `features/shelf/tabs/`, registered in that area's view |
+
+Tabs unmount when you switch away from them, so state that must survive a tab switch (such as the matrix search) belongs in the parent view or its hook, not in the tab. Avoid naming a folder `lib/`, `build/` or `dist/`: `.gitignore` excludes them at any depth.
+
+---
+
 ## 👥 Seeded User Accounts (`@bookbase.in`)
 
 | Persona | Role | Email | Password | Pre-Seeded State |

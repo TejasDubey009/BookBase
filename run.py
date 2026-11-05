@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 BookBase: Smart Relational Library Management System
-Root Launcher: Starts FastAPI Backend on port 8000 with auto-reload.
-Serves full React UI and REST API at http://127.0.0.1:8000
+Root Launcher: Starts FastAPI Backend on port 8001 (or $PORT) with auto-reload.
+Serves full React UI and REST API at http://127.0.0.1:8001
 """
 
 import os

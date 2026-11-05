@@ -1,0 +1,123 @@
+"""Sign-in, student registration and profile lookups."""
+import sqlite3
+from typing import List
+
+from app.config import MAX_LOANS_PER_USER
+from app.core.clock import utc_now_iso
+from app.core.errors import BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.core.security import hash_password, issue_token, verify_password
+from app.db.audit import log_audit
+from app.db.queries import USER_PROFILE_SELECT, count_active_loans
+from app.schemas.auth import DemoUserOut, LoginRequest, LoginResponse, RegisterRequest, UserOut
+from app.services.mappers import enrollment_or_fallback, to_user_out
+
+
+def login(db: sqlite3.Connection, payload: LoginRequest) -> LoginResponse:
+    cursor = db.cursor()
+    # Support login via enrollment_no, email, or identifier
+    raw_ident = (payload.identifier or payload.enrollment_no or payload.email or "").strip()
+    if not raw_ident:
+        raise BadRequestError("Please provide an enrollment number or email")
+
+    cursor.execute(
+        """
+        SELECT user_id, enrollment_no, full_name, email, password_hash, role, max_books_quota, outstanding_fines
+        FROM users
+        WHERE LOWER(enrollment_no) = LOWER(?) OR LOWER(email) = LOWER(?)
+        """,
+        (raw_ident, raw_ident)
+    )
+    user_row = cursor.fetchone()
+
+    if not user_row or not verify_password(payload.password, user_row["password_hash"]):
+        raise UnauthorizedError("Invalid enrollment number/email or password")
+
+    # Optional role check for role tabs
+    if payload.role and payload.role.lower() != user_row["role"].lower():
+        raise ForbiddenError(f"This account is registered as a {user_row['role']}, not {payload.role}")
+
+    user_out = to_user_out(user_row, count_active_loans(cursor, user_row["user_id"]))
+    return LoginResponse(token=issue_token(user_row["user_id"], user_row["role"]), user=user_out)
+
+
+def register(db: sqlite3.Connection, payload: RegisterRequest) -> LoginResponse:
+    cursor = db.cursor()
+    enrollment = payload.enrollment_no.strip().upper()
+    email = payload.email.strip().lower()
+    full_name = payload.full_name.strip()
+    pwd = payload.password.strip()
+
+    if not enrollment or not email or not full_name or not pwd:
+        raise BadRequestError("Full name, enrollment number, email, and password are all required.")
+
+    cursor.execute("SELECT user_id FROM users WHERE UPPER(enrollment_no) = ?", (enrollment,))
+    if cursor.fetchone():
+        raise BadRequestError(f"Enrollment number '{enrollment}' is already registered. Please sign in instead.")
+
+    cursor.execute("SELECT user_id FROM users WHERE LOWER(email) = ?", (email,))
+    if cursor.fetchone():
+        raise BadRequestError(f"Email '{email}' is already registered. Please sign in instead.")
+
+    cursor.execute(
+        """
+        INSERT INTO users (full_name, enrollment_no, email, password_hash, role, max_books_quota, outstanding_fines, created_at)
+        VALUES (?, ?, ?, ?, 'member', ?, 0.0, ?)
+        """,
+        (full_name, enrollment, email, hash_password(pwd), MAX_LOANS_PER_USER, utc_now_iso())
+    )
+    db.commit()
+    new_user_id = cursor.lastrowid
+
+    log_audit(
+        db,
+        "TX_REGISTER_STUDENT",
+        f"New student patron registered: {full_name} ({enrollment})",
+        f"user_id: {new_user_id}, enrollment_no: {enrollment}, email: {email}"
+    )
+    db.commit()
+
+    user_out = UserOut(
+        user_id=new_user_id,
+        enrollment_no=enrollment,
+        full_name=full_name,
+        email=email,
+        role="member",
+        max_books_quota=MAX_LOANS_PER_USER,
+        outstanding_fines=0.0,
+        active_loans_count=0
+    )
+    return LoginResponse(token=issue_token(new_user_id, "member"), user=user_out)
+
+
+def list_demo_users(db: sqlite3.Connection) -> List[DemoUserOut]:
+    cursor = db.cursor()
+    cursor.execute(f"{USER_PROFILE_SELECT} ORDER BY user_id ASC")
+
+    demo_profiles = []
+    for u in cursor.fetchall():
+        label = "Chief Librarian" if u["role"] == "admin" else "Student Patron"
+        pwd = "admin123" if u["role"] == "admin" else "member123"
+        en_no = enrollment_or_fallback(u["enrollment_no"], u["user_id"])
+        demo_profiles.append(
+            DemoUserOut(
+                user_id=u["user_id"],
+                enrollment_no=en_no,
+                full_name=u["full_name"],
+                email=u["email"],
+                role=u["role"],
+                label=f"{u['full_name']} ({en_no} • {label})",
+                sample_password=pwd,
+                max_books_quota=u["max_books_quota"],
+                outstanding_fines=float(u["outstanding_fines"])
+            )
+        )
+    return demo_profiles
+
+
+def get_profile(db: sqlite3.Connection, user_id: int) -> UserOut:
+    cursor = db.cursor()
+    cursor.execute(f"{USER_PROFILE_SELECT} WHERE user_id = ?", (user_id,))
+    user_row = cursor.fetchone()
+    if not user_row:
+        raise NotFoundError("User not found")
+    return to_user_out(user_row, count_active_loans(cursor, user_id))

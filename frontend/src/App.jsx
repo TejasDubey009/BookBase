@@ -1,35 +1,49 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import Toast from './components/Toast';
-import BookDetailModal from './components/BookDetailModal';
-import AddBookModal from './components/AddBookModal';
-import BookRequestModal from './components/BookRequestModal';
-import AuthModal from './components/AuthModal';
-import CatalogView from './views/CatalogView';
-import MemberShelfView from './views/MemberShelfView';
-import AdminConsoleView from './views/AdminConsoleView';
-import { api } from './api';
+import { useCallback, useState } from 'react';
+import { api } from './api/bookbase';
+import Footer from './components/layout/Footer';
+import Navbar from './components/layout/navbar/Navbar';
+import Toast from './components/ui/Toast';
+import AdminConsoleView from './features/admin/AdminConsoleView';
+import AuthModal from './features/auth/AuthModal';
+import AddBookModal from './features/catalog/AddBookModal';
+import BookDetailModal from './features/catalog/book-detail/BookDetailModal';
+import CatalogView from './features/catalog/CatalogView';
+import BookRequestModal from './features/requests/BookRequestModal';
+import MemberShelfView from './features/shelf/MemberShelfView';
+import { useCatalog } from './hooks/useCatalog';
+import { useCirculationActions } from './hooks/useCirculationActions';
+import { useSession } from './hooks/useSession';
+import { useToast } from './hooks/useToast';
 
 export default function App() {
-  // 3 Portals State: 'kiosk' | 'student' | 'admin'
-  const [activePortal, setActivePortal] = useState(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (['kiosk', 'student', 'admin'].includes(hash)) return hash;
-    return localStorage.getItem('bb_active_portal') || 'kiosk';
-  });
+  const { toast, showToast, dismissToast } = useToast();
 
-  // Global Session State
-  const [currentUser, setCurrentUser] = useState(null);
-  const [demoUsers, setDemoUsers] = useState([]);
-  const [currentView, setCurrentView] = useState('catalog');
+  // Bumped after every change on the server, so anything showing that data refetches
+  const [lastEventTimestamp, setLastEventTimestamp] = useState(Date.now());
+  const notifyDataChanged = useCallback(() => setLastEventTimestamp(Date.now()), []);
 
-  // Catalog State
-  const [books, setBooks] = useState([]);
-  const [booksLoading, setBooksLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [availabilityFilter, setAvailabilityFilter] = useState('all');
+  const {
+    activePortal,
+    setActivePortal,
+    currentUser,
+    demoUsers,
+    currentView,
+    setCurrentView,
+    pendingRequestsCount,
+    handleLoginSuccess,
+    handleLogout,
+  } = useSession({ showToast, lastEventTimestamp, notifyDataChanged });
+
+  const {
+    books,
+    booksLoading,
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    availabilityFilter,
+    setAvailabilityFilter,
+  } = useCatalog({ currentUser, lastEventTimestamp });
 
   // Modals
   const [selectedBookId, setSelectedBookId] = useState(null);
@@ -38,242 +52,19 @@ export default function App() {
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestPrefillBook, setRequestPrefillBook] = useState(null);
 
-  // Administrative Counts
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const { loadingActionId, handleBorrow, handleJoinWaitlist, handleReturn, handleCancelWaitlist } = useCirculationActions({
+    activePortal,
+    currentUser,
+    showToast,
+    notifyDataChanged,
+    openAuthModal: () => setIsAuthModalOpen(true),
+  });
 
-  // Notifications & Concurrency Lock UI
-  const [toast, setToast] = useState(null);
-  const [loadingActionId, setLoadingActionId] = useState(null);
-  const [lastEventTimestamp, setLastEventTimestamp] = useState(Date.now());
-
-  // Show toast helper with auto-dismiss
-  const showToast = useCallback((toastData) => {
-    setToast(toastData);
-    const timeout = toastData.status === 'AUTO_ASSIGNED_TO_WAITLIST' ? 7000 : 4500;
-    setTimeout(() => {
-      setToast((prev) => (prev === toastData ? null : prev));
-    }, timeout);
-  }, []);
-
-  // Sync activePortal with localStorage and URL hash
-  const handleSetPortal = (portal) => {
-    setActivePortal(portal);
-    localStorage.setItem('bb_active_portal', portal);
-    window.location.hash = portal;
-  };
-
-  // 1. Initial Load: Fetch Demo Users & Set Default Persona (Tejas - CSBS2022001)
-  useEffect(() => {
-    api.getDemoUsers()
-      .then((users) => {
-        setDemoUsers(users);
-        const savedUserId = localStorage.getItem('bb_user_id');
-        let initialUser = null;
-        if (savedUserId) {
-          initialUser = users.find((u) => u.user_id === parseInt(savedUserId, 10));
-        }
-        if (!initialUser) {
-          // Default to Tejas (CSBS2022001)
-          initialUser = users.find((u) => u.email === 'tejas@bookbase.in') || users[1] || users[0];
-        }
-        setCurrentUser(initialUser);
-
-        // If saved portal is admin but user is not admin, reset to kiosk
-        if (activePortal === 'admin' && initialUser?.role !== 'admin') {
-          handleSetPortal('kiosk');
-          setCurrentView('catalog');
-        } else if (activePortal === 'admin' && initialUser?.role === 'admin') {
-          setCurrentView('admin-console');
-        }
-      })
-      .catch((err) => console.error('Failed to load users:', err));
-  }, []);
-
-  // 2. Fetch Books whenever search/filters, user, or events change
-  const fetchBooks = useCallback(() => {
-    setBooksLoading(true);
-    api.getBooks({
-      search: searchQuery,
-      category: selectedCategory,
-      availability: availabilityFilter,
-      userId: currentUser?.user_id,
-    })
-      .then((data) => {
-        setBooks(data);
-        setBooksLoading(false);
-      })
-      .catch((err) => {
-        console.error('Error fetching books:', err);
-        setBooksLoading(false);
-      });
-  }, [searchQuery, selectedCategory, availabilityFilter, currentUser, lastEventTimestamp]);
-
-  useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]);
-
-  // Refresh User state & pending requests count
-  useEffect(() => {
-    if (!currentUser) return;
-    api.getCurrentUser(currentUser.user_id)
-      .then((freshUser) => {
-        setCurrentUser(freshUser);
-      })
-      .catch(() => {});
-
-    // If admin, check pending book requests
-    if (currentUser.role === 'admin') {
-      api.getBookRequests()
-        .then((reqs) => {
-          const pending = reqs.filter(r => r.status === 'Pending').length;
-          setPendingRequestsCount(pending);
-        })
-        .catch(() => {});
-    }
-  }, [lastEventTimestamp, currentUser?.user_id]);
-
-  // Action: Borrow Book (Kiosk Only)
-  const handleBorrow = async (bookId) => {
-    if (activePortal === 'student') {
-      showToast({
-        type: 'warning',
-        message: 'Physical borrowing is disabled in Remote Student Portal. Please visit the Central Library Kiosk to check out copies.'
-      });
-      return;
-    }
-
-    if (!currentUser) {
-      setIsAuthModalOpen(true);
-      showToast({ type: 'warning', message: 'Please sign in with your Enrollment Number to borrow books.' });
-      return;
-    }
-    setLoadingActionId(bookId);
-    try {
-      const resp = await api.checkoutBook(currentUser.user_id, bookId);
-      showToast({
-        type: 'success',
-        message: resp.message,
-      });
-      setLastEventTimestamp(Date.now());
-    } catch (err) {
-      showToast({
-        type: 'error',
-        message: err.message,
-      });
-    } finally {
-      setLoadingActionId(null);
-    }
-  };
-
-  // Action: Join FIFO Waitlist
-  const handleJoinWaitlist = async (bookId) => {
-    if (!currentUser) {
-      setIsAuthModalOpen(true);
-      showToast({ type: 'warning', message: 'Please sign in to join the course reservation waitlist.' });
-      return;
-    }
-    setLoadingActionId(bookId);
-    try {
-      const resp = await api.joinWaitlist(currentUser.user_id, bookId);
-      showToast({
-        type: 'waitlist_promo',
-        message: resp.message,
-      });
-      setLastEventTimestamp(Date.now());
-    } catch (err) {
-      showToast({
-        type: 'error',
-        message: err.message,
-      });
-    } finally {
-      setLoadingActionId(null);
-    }
-  };
-
-  // Action: Return Book (FIFO WAITLIST HANDOFF)
-  const handleReturn = async (loanId) => {
-    setLoadingActionId(loanId);
-    try {
-      const resp = await api.returnBook(loanId);
-      if (resp.status === 'AUTO_ASSIGNED_TO_WAITLIST') {
-        showToast({
-          type: 'waitlist_promo',
-          status: 'AUTO_ASSIGNED_TO_WAITLIST',
-          message: resp.message,
-        });
-      } else {
-        showToast({
-          type: 'success',
-          message: resp.message,
-        });
-      }
-      setLastEventTimestamp(Date.now());
-      return resp;
-    } catch (err) {
-      showToast({
-        type: 'error',
-        message: err.message,
-      });
-      throw err;
-    } finally {
-      setLoadingActionId(null);
-    }
-  };
-
-  // Action: Cancel Waitlist Reservation
-  const handleCancelWaitlist = async (reservationId) => {
-    try {
-      const resp = await api.cancelWaitlist(reservationId);
-      showToast({
-        type: 'success',
-        message: resp.message,
-      });
-      setLastEventTimestamp(Date.now());
-    } catch (err) {
-      showToast({
-        type: 'error',
-        message: err.message,
-      });
-    }
-  };
-
-  // Open Book Request Modal
   const handleOpenBookRequest = (prefillBook = null) => {
     setRequestPrefillBook(prefillBook);
     setIsRequestModalOpen(true);
   };
 
-  // Action: Log In Success
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    localStorage.setItem('bb_user_id', user.user_id.toString());
-    if (user.role === 'admin') {
-      handleSetPortal('admin');
-      setCurrentView('admin-console');
-    } else {
-      // If student was on admin, redirect to kiosk or student portal
-      if (activePortal === 'admin') {
-        handleSetPortal('student');
-      }
-      setCurrentView('catalog');
-    }
-    setLastEventTimestamp(Date.now());
-  };
-
-  // Action: Log Out
-  const handleLogout = () => {
-    localStorage.removeItem('bb_token');
-    localStorage.removeItem('bb_user_id');
-    setCurrentUser(null);
-    if (activePortal === 'admin') {
-      handleSetPortal('kiosk');
-    }
-    setCurrentView('catalog');
-    showToast({ type: 'success', message: 'You have been signed out.' });
-    setLastEventTimestamp(Date.now());
-  };
-
-  // Reset demo database to initial state
   const handleResetDemo = async () => {
     if (!window.confirm('Reset BookBase database back to the clean initial state?')) {
       return;
@@ -284,7 +75,7 @@ export default function App() {
         type: 'success',
         message: '⚡ Database cleanly reset to pristine demo state!',
       });
-      setLastEventTimestamp(Date.now());
+      notifyDataChanged();
     } catch (err) {
       showToast({ type: 'error', message: err.message });
     }
@@ -292,14 +83,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-12 selection:bg-indigo-100 selection:text-indigo-900">
-      
+
       {/* Toast Notification */}
-      <Toast toast={toast} onDismiss={() => setToast(null)} />
+      <Toast toast={toast} onDismiss={dismissToast} />
 
       {/* Modern Multi-Portal Navigation Bar */}
       <Navbar
         activePortal={activePortal}
-        setActivePortal={handleSetPortal}
+        setActivePortal={setActivePortal}
         currentView={currentView}
         setCurrentView={setCurrentView}
         currentUser={currentUser}
@@ -360,7 +151,7 @@ export default function App() {
       </main>
 
       {/* Institutional Central Library Footer */}
-      <Footer onOpenAuth={() => setIsAuthModalOpen(true)} />
+      <Footer />
 
       {/* Book Detail & 3NF Inventory Modal */}
       {selectedBookId && (
@@ -382,7 +173,7 @@ export default function App() {
       <AddBookModal
         isOpen={isAddBookOpen}
         onClose={() => setIsAddBookOpen(false)}
-        onSuccess={() => setLastEventTimestamp(Date.now())}
+        onSuccess={notifyDataChanged}
         showToast={showToast}
       />
 
@@ -397,7 +188,7 @@ export default function App() {
             type: 'success',
             message: 'Book acquisition request submitted to library administration!'
           });
-          setLastEventTimestamp(Date.now());
+          notifyDataChanged();
         }}
         showToast={showToast}
       />
