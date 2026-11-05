@@ -20,6 +20,18 @@
       "destination": "/api/index.py?__path__=openapi.json"
     },
     {
+      "source": "/kiosk",
+      "destination": "/kiosk/index.html"
+    },
+    {
+      "source": "/student",
+      "destination": "/student/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin/index.html"
+    },
+    {
       "source": "/",
       "has": [
         {
