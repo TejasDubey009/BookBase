@@ -161,7 +161,7 @@ pip install -r backend/requirements.txt
 python3 run.py
 ```
 
-The three portals are separate websites, each with its own address and its own sign-in. They share one API and one database, so a book borrowed at the kiosk shows up straight away in the admin portal.
+The three portals are separate websites, each with its own address and its own sign-in. They share one API and one database, so a book borrowed at the kiosk shows up in the admin portal the next time that page loads its data.
 
 | Site | Address | For | Signs in |
 | :--- | :--- | :--- | :--- |
