@@ -58,7 +58,8 @@ _BOOK_WAITLIST_SELECT = f"""
 """
 
 
-def _to_copy_out(row: sqlite3.Row) -> CopyOut:
+def _to_copy_out(row: sqlite3.Row, show_borrower: bool) -> CopyOut:
+    """Who holds a copy is a patron's private data. The due date alone is public."""
     return CopyOut(
         copy_id=row["copy_id"],
         book_id=row["book_id"],
@@ -66,7 +67,7 @@ def _to_copy_out(row: sqlite3.Row) -> CopyOut:
         shelf_location=row["shelf_location"],
         status=row["status"],
         condition=row["condition"],
-        current_borrower_name=row["current_borrower_name"],
+        current_borrower_name=row["current_borrower_name"] if show_borrower else None,
         current_due_date=row["current_due_date"]
     )
 
@@ -106,6 +107,7 @@ def list_books(
     category: Optional[str] = None,
     availability: Optional[str] = None,
     user_id: Optional[int] = None,
+    show_borrowers: bool = False,
 ) -> List[BookOut]:
     cursor = db.cursor()
 
@@ -148,7 +150,7 @@ def list_books(
     cursor.execute(f"{_COPY_WITH_BORROWER_SELECT} ORDER BY bc.copy_id ASC")
     copies_by_book: Dict[int, List[CopyOut]] = {}
     for copy_row in cursor.fetchall():
-        copies_by_book.setdefault(copy_row["book_id"], []).append(_to_copy_out(copy_row))
+        copies_by_book.setdefault(copy_row["book_id"], []).append(_to_copy_out(copy_row, show_borrowers))
 
     results = []
     for b in book_rows:
@@ -168,20 +170,35 @@ def list_books(
     return results
 
 
-def _book_waitlist(cursor: sqlite3.Cursor, book_id: int) -> List[BookWaitlistEntryOut]:
+def _book_waitlist(
+    cursor: sqlite3.Cursor,
+    book_id: int,
+    viewer_id: Optional[int],
+    show_names: bool,
+) -> List[BookWaitlistEntryOut]:
+    """Who is waiting is a patron's private data: others see only the queue positions."""
     cursor.execute(_BOOK_WAITLIST_SELECT, (book_id,))
-    return [
-        BookWaitlistEntryOut(
-            reservation_id=row["reservation_id"],
-            user_id=row["user_id"],
-            user_name=row["user_name"],
-            queue_position=row["queue_pos"],
-            created_at=row["created_at"]
-        ) for row in cursor.fetchall()
-    ]
+    entries = []
+    for row in cursor.fetchall():
+        identifiable = show_names or row["user_id"] == viewer_id
+        entries.append(
+            BookWaitlistEntryOut(
+                reservation_id=row["reservation_id"],
+                user_id=row["user_id"] if identifiable else None,
+                user_name=row["user_name"] if identifiable else None,
+                queue_position=row["queue_pos"],
+                created_at=row["created_at"]
+            )
+        )
+    return entries
 
 
-def get_book_detail(db: sqlite3.Connection, book_id: int, user_id: Optional[int] = None) -> BookDetailOut:
+def get_book_detail(
+    db: sqlite3.Connection,
+    book_id: int,
+    user_id: Optional[int] = None,
+    show_borrowers: bool = False,
+) -> BookDetailOut:
     cursor = db.cursor()
     cursor.execute(f"{_BOOK_WITH_COUNTS_SELECT} WHERE b.book_id = ? GROUP BY b.book_id", (book_id,))
     book_row = cursor.fetchone()
@@ -189,7 +206,7 @@ def get_book_detail(db: sqlite3.Connection, book_id: int, user_id: Optional[int]
         raise NotFoundError("Book not found")
 
     cursor.execute(f"{_COPY_WITH_BORROWER_SELECT} WHERE bc.book_id = ? ORDER BY bc.copy_id ASC", (book_id,))
-    copies = [_to_copy_out(row) for row in cursor.fetchall()]
+    copies = [_to_copy_out(row, show_borrowers) for row in cursor.fetchall()]
 
     user_context = None
     if user_id:
@@ -200,7 +217,10 @@ def get_book_detail(db: sqlite3.Connection, book_id: int, user_id: Optional[int]
         user_context = _to_user_context(active_loan, waitlist_entry)
 
     book = _to_book_out(book_row, copies, user_context)
-    return BookDetailOut(**book.model_dump(), waitlist_entries=_book_waitlist(cursor, book_id))
+    return BookDetailOut(
+        **book.model_dump(),
+        waitlist_entries=_book_waitlist(cursor, book_id, viewer_id=user_id, show_names=show_borrowers)
+    )
 
 
 def create_book(db: sqlite3.Connection, payload: BookCreateRequest) -> dict:

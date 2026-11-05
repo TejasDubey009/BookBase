@@ -15,7 +15,6 @@ export function useCatalog({ currentUser, lastEventTimestamp }) {
       search: searchQuery,
       category: selectedCategory,
       availability: availabilityFilter,
-      userId: currentUser?.user_id,
     })
       .then((data) => {
         setBooks(data);
@@ -25,6 +24,7 @@ export function useCatalog({ currentUser, lastEventTimestamp }) {
         console.error('Error fetching books:', err);
         setBooksLoading(false);
       });
+    // currentUser: each book's loan and waitlist context depends on who the session token belongs to
   }, [searchQuery, selectedCategory, availabilityFilter, currentUser, lastEventTimestamp]);
 
   useEffect(() => {

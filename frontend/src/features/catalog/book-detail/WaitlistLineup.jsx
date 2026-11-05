@@ -19,7 +19,7 @@ export default function WaitlistLineup({ book, currentUser }) {
         <div className="p-4 space-y-2">
           {book.waitlist_entries.map((w) => {
             const isFirst = w.queue_position === 1;
-            const isCurrentUser = currentUser?.user_id === w.user_id;
+            const isCurrentUser = Boolean(currentUser) && currentUser.user_id === w.user_id;
 
             return (
               <div
@@ -37,7 +37,7 @@ export default function WaitlistLineup({ book, currentUser }) {
                     #{w.queue_position}
                   </span>
                   <div>
-                    <span className="text-slate-900">{w.user_name}</span>
+                    <span className="text-slate-900">{w.user_name || 'Reserved'}</span>
                     {isCurrentUser && (
                       <span className="ml-1.5 text-[10px] text-amber-800 font-bold bg-amber-100 px-1.5 py-0.2 rounded">
                         You

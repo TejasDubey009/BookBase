@@ -10,7 +10,7 @@ class LendingPolicyOut(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None  # Admins may act for a patron; everyone else acts as themselves
     book_id: int
     copy_id: Optional[int] = None
 
@@ -27,7 +27,7 @@ class CheckoutResponse(BaseModel):
 
 
 class WaitlistRequest(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None  # Admins may act for a patron; everyone else acts as themselves
     book_id: int
 
 

@@ -3,11 +3,17 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 
+from app.core.auth import require_admin
+from app.core.security import CurrentUser
 from app.db.connection import get_db
 from app.schemas.admin import AdminOverviewOut, GroupedBookBorrowersOut, SettleFineRequest
 from app.services import admin_service
 
-router = APIRouter(prefix="/admin", tags=["Admin Operations & Inventory Management"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["Admin Operations & Inventory Management"],
+    dependencies=[Depends(require_admin)]
+)
 
 
 @router.get("/overview", response_model=AdminOverviewOut)
@@ -32,8 +38,8 @@ def settle_user_fine(payload: SettleFineRequest, db: sqlite3.Connection = Depend
 
 
 @router.post("/reset-demo")
-def reset_demo(db: sqlite3.Connection = Depends(get_db)):
+def reset_demo(actor: CurrentUser = Depends(require_admin), db: sqlite3.Connection = Depends(get_db)):
     """
     Resets the database back to clean seeded state at any time for repeat viva demonstrations.
     """
-    return admin_service.reset_demo(db)
+    return admin_service.reset_demo(db, actor)

@@ -4,9 +4,21 @@
  */
 
 const BASE_URL = '/api/v1';
+const STORAGE_TOKEN = 'bb_token';
 
-async function request(endpoint, options = {}) {
-  const token = localStorage.getItem('bb_token');
+let onSessionExpired = () => {};
+
+export const getAuthToken = () => localStorage.getItem(STORAGE_TOKEN);
+export const setAuthToken = (token) => localStorage.setItem(STORAGE_TOKEN, token);
+export const clearAuthToken = () => localStorage.removeItem(STORAGE_TOKEN);
+
+/** Registers what to do when the server stops accepting the stored session token. */
+export const setSessionExpiredHandler = (handler) => {
+  onSessionExpired = handler;
+};
+
+async function request(endpoint, { skipAuth = false, ...options } = {}) {
+  const token = skipAuth ? null : getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -20,6 +32,12 @@ async function request(endpoint, options = {}) {
 
   const data = await response.json().catch(() => null);
 
+  // Only if the rejected token is still the stored one: a late reply must not end a newer session
+  if (response.status === 401 && token && token === getAuthToken()) {
+    clearAuthToken();
+    onSessionExpired();
+  }
+
   if (!response.ok) {
     const errorMsg = data?.detail || response.statusText || 'Request failed';
     throw new Error(errorMsg);
@@ -32,19 +50,21 @@ export const api = {
   // Auth
   login: (identifier, password, role) =>
     request('/auth/login', {
+      skipAuth: true,
       method: 'POST',
       body: JSON.stringify({ identifier, email: identifier, enrollment_no: identifier, password, role }),
     }),
 
   register: (registrationData) =>
     request('/auth/register', {
+      skipAuth: true,
       method: 'POST',
       body: JSON.stringify(registrationData),
     }),
 
-  getDemoUsers: () => request('/auth/demo-users'),
+  getDemoUsers: () => request('/auth/demo-users', { skipAuth: true }),
 
-  getCurrentUser: (userId) => request(`/auth/me?user_id=${userId}`),
+  getCurrentUser: () => request('/auth/me'),
 
   // Books & Inventory
   getBooks: (params = {}) => {
@@ -52,14 +72,10 @@ export const api = {
     if (params.search) query.set('search', params.search);
     if (params.category && params.category !== 'All') query.set('category', params.category);
     if (params.availability && params.availability !== 'all') query.set('availability', params.availability);
-    if (params.userId) query.set('user_id', params.userId);
     return request(`/books?${query.toString()}`);
   },
 
-  getBookDetail: (bookId, userId) => {
-    const query = userId ? `?user_id=${userId}` : '';
-    return request(`/books/${bookId}${query}`);
-  },
+  getBookDetail: (bookId) => request(`/books/${bookId}`),
 
   createBook: (bookData) =>
     request('/books', {
@@ -74,16 +90,16 @@ export const api = {
     }),
 
   // Circulation & Waitlist Engine
-  checkoutBook: (userId, bookId, copyId = null) =>
+  checkoutBook: (bookId, copyId = null) =>
     request('/circulation/checkout', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId, book_id: bookId, copy_id: copyId }),
+      body: JSON.stringify({ book_id: bookId, copy_id: copyId }),
     }),
 
-  joinWaitlist: (userId, bookId) =>
+  joinWaitlist: (bookId) =>
     request('/circulation/waitlist', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId, book_id: bookId }),
+      body: JSON.stringify({ book_id: bookId }),
     }),
 
   cancelWaitlist: (reservationId) =>
@@ -115,16 +131,15 @@ export const api = {
       body: JSON.stringify({ user_id: userId, amount_settled: amountSettled }),
     }),
 
-  resetDemoDb: () =>
-    request('/admin/reset-demo', {
-      method: 'POST',
-    }),
+  // Resetting recreates every account, so the reply carries a new token for this librarian
+  resetDemoDb: async () => {
+    const resp = await request('/admin/reset-demo', { method: 'POST' });
+    if (resp.token) setAuthToken(resp.token);
+    return resp;
+  },
 
   // Student Book Procurement Requests
-  getBookRequests: (userId = null) => {
-    const query = userId ? `?user_id=${userId}` : '';
-    return request(`/requests${query}`);
-  },
+  getBookRequests: () => request('/requests'),
 
   createBookRequest: (requestData) =>
     request('/requests', {

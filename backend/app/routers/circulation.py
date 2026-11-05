@@ -2,6 +2,8 @@ import sqlite3
 
 from fastapi import APIRouter, Depends
 
+from app.core.auth import get_current_user
+from app.core.security import CurrentUser, resolve_target_user
 from app.db.connection import get_db
 from app.schemas.circulation import (
     CheckoutRequest,
@@ -17,7 +19,11 @@ router = APIRouter(prefix="/circulation", tags=["Circulation & FIFO Waitlist Eng
 
 
 @router.post("/checkout", response_model=CheckoutResponse)
-def checkout_book(payload: CheckoutRequest, db: sqlite3.Connection = Depends(get_db)):
+def checkout_book(
+    payload: CheckoutRequest,
+    actor: CurrentUser = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
     """
     Atomic Checkout Transaction:
     1. Validates user's loan quota and outstanding fines.
@@ -27,11 +33,15 @@ def checkout_book(payload: CheckoutRequest, db: sqlite3.Connection = Depends(get
     5. Fulfills any active waitlist reservation for this user on this book.
     6. Logs TX_CHECKOUT to db_audit_logs.
     """
-    return circulation_service.checkout(db, payload)
+    return circulation_service.checkout(db, payload, user_id=resolve_target_user(actor, payload.user_id))
 
 
 @router.post("/waitlist", response_model=WaitlistResponse)
-def join_waitlist(payload: WaitlistRequest, db: sqlite3.Connection = Depends(get_db)):
+def join_waitlist(
+    payload: WaitlistRequest,
+    actor: CurrentUser = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
     """
     FIFO Waitlist Registration:
     1. Validates that 0 copies are currently available.
@@ -40,19 +50,27 @@ def join_waitlist(payload: WaitlistRequest, db: sqlite3.Connection = Depends(get
     4. Computes patron's 1-based FIFO position.
     5. Logs TX_WAITLIST_JOIN to db_audit_logs.
     """
-    return circulation_service.join_waitlist(db, payload)
+    return circulation_service.join_waitlist(db, payload, user_id=resolve_target_user(actor, payload.user_id))
 
 
 @router.delete("/waitlist/{reservation_id}")
-def cancel_waitlist(reservation_id: int, db: sqlite3.Connection = Depends(get_db)):
+def cancel_waitlist(
+    reservation_id: int,
+    actor: CurrentUser = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
     """
     Cancels an active waitlist reservation.
     """
-    return circulation_service.cancel_reservation(db, reservation_id)
+    return circulation_service.cancel_reservation(db, reservation_id, actor)
 
 
 @router.post("/return", response_model=ReturnResponse)
-def return_book(payload: ReturnRequest, db: sqlite3.Connection = Depends(get_db)):
+def return_book(
+    payload: ReturnRequest,
+    actor: CurrentUser = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
     """
     CRITICAL WAITLIST HANDOFF & AUTO-ASSIGNMENT ENGINE:
     1. Verify loan is active (return_date IS NULL).
@@ -67,4 +85,4 @@ def return_book(payload: ReturnRequest, db: sqlite3.Connection = Depends(get_db)
        - Set copy status = 'Available'.
        - Log TX_RETURN_TO_SHELF in db_audit_logs.
     """
-    return circulation_service.return_book(db, payload)
+    return circulation_service.return_book(db, payload, actor)

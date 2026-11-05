@@ -41,14 +41,15 @@ class BookOut(BaseModel):
 
 class BookWaitlistEntryOut(BaseModel):
     reservation_id: int
-    user_id: int
-    user_name: str
+    # Set only for admins and for the caller's own entry
+    user_id: Optional[int] = None
+    user_name: Optional[str] = None
     queue_position: int
     created_at: str
 
 
 class BookDetailOut(BookOut):
-    # Book detail is readable by any patron, so this carries no email or enrollment number
+    # Book detail is public, so this carries no email or enrollment number
     waitlist_entries: List[BookWaitlistEntryOut] = []
 
 

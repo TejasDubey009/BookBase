@@ -35,12 +35,7 @@ class LoginResponse(BaseModel):
 
 
 class DemoUserOut(BaseModel):
-    user_id: int
     enrollment_no: str
     full_name: str
-    email: str
     role: str
-    label: str
     sample_password: str
-    max_books_quota: int
-    outstanding_fines: float

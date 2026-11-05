@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class BookRequestCreate(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None  # Admins may act for a patron; everyone else acts as themselves
     title: str
     author: Optional[str] = None
     category: Optional[str] = "Core Computer Science"

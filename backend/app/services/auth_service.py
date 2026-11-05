@@ -2,14 +2,15 @@
 import sqlite3
 from typing import List
 
-from app.config import MAX_LOANS_PER_USER
+from app.config import DEMO_MODE, MAX_LOANS_PER_USER
 from app.core.clock import utc_now_iso
 from app.core.errors import BadRequestError, ForbiddenError, NotFoundError, UnauthorizedError
-from app.core.security import hash_password, issue_token, verify_password
+from app.core.security import hash_password, issue_token, needs_rehash, verify_password
 from app.db.audit import log_audit
 from app.db.queries import USER_PROFILE_SELECT, count_active_loans
+from app.db.seed_data import USERS as SEEDED_USERS
 from app.schemas.auth import DemoUserOut, LoginRequest, LoginResponse, RegisterRequest, UserOut
-from app.services.mappers import enrollment_or_fallback, to_user_out
+from app.services.mappers import to_user_out
 
 
 def login(db: sqlite3.Connection, payload: LoginRequest) -> LoginResponse:
@@ -21,7 +22,7 @@ def login(db: sqlite3.Connection, payload: LoginRequest) -> LoginResponse:
 
     cursor.execute(
         """
-        SELECT user_id, enrollment_no, full_name, email, password_hash, role, max_books_quota, outstanding_fines
+        SELECT user_id, enrollment_no, full_name, email, password_hash, role, max_books_quota, outstanding_fines, created_at
         FROM users
         WHERE LOWER(enrollment_no) = LOWER(?) OR LOWER(email) = LOWER(?)
         """,
@@ -32,12 +33,20 @@ def login(db: sqlite3.Connection, payload: LoginRequest) -> LoginResponse:
     if not user_row or not verify_password(payload.password, user_row["password_hash"]):
         raise UnauthorizedError("Invalid enrollment number/email or password")
 
+    # Older accounts move to the current password hash the next time they sign in
+    if needs_rehash(user_row["password_hash"]):
+        cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE user_id = ?",
+            (hash_password(payload.password), user_row["user_id"])
+        )
+        db.commit()
+
     # Optional role check for role tabs
     if payload.role and payload.role.lower() != user_row["role"].lower():
         raise ForbiddenError(f"This account is registered as a {user_row['role']}, not {payload.role}")
 
     user_out = to_user_out(user_row, count_active_loans(cursor, user_row["user_id"]))
-    return LoginResponse(token=issue_token(user_row["user_id"], user_row["role"]), user=user_out)
+    return LoginResponse(token=issue_token(user_row["user_id"], user_row["created_at"]), user=user_out)
 
 
 def register(db: sqlite3.Connection, payload: RegisterRequest) -> LoginResponse:
@@ -58,12 +67,13 @@ def register(db: sqlite3.Connection, payload: RegisterRequest) -> LoginResponse:
     if cursor.fetchone():
         raise BadRequestError(f"Email '{email}' is already registered. Please sign in instead.")
 
+    created_at = utc_now_iso()
     cursor.execute(
         """
         INSERT INTO users (full_name, enrollment_no, email, password_hash, role, max_books_quota, outstanding_fines, created_at)
         VALUES (?, ?, ?, ?, 'member', ?, 0.0, ?)
         """,
-        (full_name, enrollment, email, hash_password(pwd), MAX_LOANS_PER_USER, utc_now_iso())
+        (full_name, enrollment, email, hash_password(pwd), MAX_LOANS_PER_USER, created_at)
     )
     db.commit()
     new_user_id = cursor.lastrowid
@@ -86,32 +96,29 @@ def register(db: sqlite3.Connection, payload: RegisterRequest) -> LoginResponse:
         outstanding_fines=0.0,
         active_loans_count=0
     )
-    return LoginResponse(token=issue_token(new_user_id, "member"), user=user_out)
+    return LoginResponse(token=issue_token(new_user_id, created_at), user=user_out)
 
 
 def list_demo_users(db: sqlite3.Connection) -> List[DemoUserOut]:
-    cursor = db.cursor()
-    cursor.execute(f"{USER_PROFILE_SELECT} ORDER BY user_id ASC")
+    """The seeded accounts for the sign-in modal's quick-select. Empty unless demo mode is on."""
+    if not DEMO_MODE:
+        return []
 
-    demo_profiles = []
-    for u in cursor.fetchall():
-        label = "Chief Librarian" if u["role"] == "admin" else "Student Patron"
-        pwd = "admin123" if u["role"] == "admin" else "member123"
-        en_no = enrollment_or_fallback(u["enrollment_no"], u["user_id"])
-        demo_profiles.append(
-            DemoUserOut(
-                user_id=u["user_id"],
-                enrollment_no=en_no,
-                full_name=u["full_name"],
-                email=u["email"],
-                role=u["role"],
-                label=f"{u['full_name']} ({en_no} • {label})",
-                sample_password=pwd,
-                max_books_quota=u["max_books_quota"],
-                outstanding_fines=float(u["outstanding_fines"])
-            )
-        )
-    return demo_profiles
+    passwords = {enrollment: password for _, enrollment, _, password, _, _, _ in SEEDED_USERS}
+    placeholders = ", ".join("?" for _ in passwords)
+    cursor = db.cursor()
+    cursor.execute(
+        f"SELECT enrollment_no, full_name, role FROM users WHERE enrollment_no IN ({placeholders}) ORDER BY user_id ASC",
+        list(passwords)
+    )
+    return [
+        DemoUserOut(
+            enrollment_no=u["enrollment_no"],
+            full_name=u["full_name"],
+            role=u["role"],
+            sample_password=passwords[u["enrollment_no"]]
+        ) for u in cursor.fetchall()
+    ]
 
 
 def get_profile(db: sqlite3.Connection, user_id: int) -> UserOut:

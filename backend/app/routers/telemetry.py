@@ -3,11 +3,13 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
+from app.core.auth import require_admin
 from app.db.connection import get_db
 from app.schemas.telemetry import AuditLogOut
 from app.services import telemetry_service
 
-router = APIRouter(prefix="/telemetry", tags=["DBMS Telemetry Logs"])
+# Audit entries name patrons and what they borrowed
+router = APIRouter(prefix="/telemetry", tags=["DBMS Telemetry Logs"], dependencies=[Depends(require_admin)])
 
 
 @router.get("/logs", response_model=List[AuditLogOut])

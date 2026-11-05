@@ -26,10 +26,10 @@ def list_requests(db: sqlite3.Connection, user_id: Optional[int] = None) -> List
     return [to_book_request_out(row) for row in cursor.fetchall()]
 
 
-def create_request(db: sqlite3.Connection, payload: BookRequestCreate) -> BookRequestOut:
+def create_request(db: sqlite3.Connection, payload: BookRequestCreate, user_id: int) -> BookRequestOut:
     cursor = db.cursor()
 
-    cursor.execute("SELECT user_id, full_name, enrollment_no, email FROM users WHERE user_id = ?", (payload.user_id,))
+    cursor.execute("SELECT user_id, full_name, enrollment_no, email FROM users WHERE user_id = ?", (user_id,))
     user = cursor.fetchone()
     if not user:
         raise NotFoundError("User not found")
@@ -41,7 +41,7 @@ def create_request(db: sqlite3.Connection, payload: BookRequestCreate) -> BookRe
         VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?)
         """,
         (
-            payload.user_id,
+            user_id,
             payload.book_id,
             payload.title.strip(),
             (payload.author or "").strip() or None,
@@ -58,7 +58,7 @@ def create_request(db: sqlite3.Connection, payload: BookRequestCreate) -> BookRe
         db,
         "TX_BOOK_REQUEST",
         f"Student {user['full_name']} submitted procurement request for '{payload.title}'",
-        f"request_id: {req_id}, user_id: {payload.user_id}, title: {payload.title}"
+        f"request_id: {req_id}, user_id: {user_id}, title: {payload.title}"
     )
     db.commit()
 

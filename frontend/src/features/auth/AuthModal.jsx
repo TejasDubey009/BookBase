@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Library, LogIn, UserPlus, X } from 'lucide-react';
 import { api } from '../../api/bookbase';
 import SignInPanel from './SignInPanel';
@@ -9,8 +9,8 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   const [roleTab, setRoleTab] = useState(initialRole); // 'member' or 'admin'
   
   // Sign In fields
-  const [identifier, setIdentifier] = useState('CSBS2022001'); // Enrollment Number or Email
-  const [password, setPassword] = useState('member123');
+  const [identifier, setIdentifier] = useState(''); // Enrollment Number or Email
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -20,22 +20,27 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
 
+  // With demo mode on, start from the first seeded account for the role. Otherwise start blank.
+  const resetSignInFields = (role) => {
+    const demoAccount = demoUsers.find((u) => u.role === role);
+    setIdentifier(demoAccount?.enrollment_no ?? '');
+    setPassword(demoAccount?.sample_password ?? '');
+  };
+
+  useEffect(() => {
+    resetSignInFields(roleTab);
+  }, [demoUsers]);
+
   if (!isOpen) return null;
 
   const handleRoleTabChange = (role) => {
     setRoleTab(role);
-    if (role === 'admin') {
-      setIdentifier('ADMIN001');
-      setPassword('admin123');
-    } else {
-      setIdentifier('CSBS2022001');
-      setPassword('member123');
-    }
+    resetSignInFields(role);
   };
 
   const handleQuickSelect = (u) => {
-    setIdentifier(u.enrollment_no || u.email);
-    setPassword(u.sample_password || (u.role === 'admin' ? 'admin123' : 'member123'));
+    setIdentifier(u.enrollment_no);
+    setPassword(u.sample_password);
   };
 
   const handleManualLogin = async (e) => {
@@ -43,9 +48,9 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
     setLoading(true);
     try {
       const resp = await api.login(identifier.trim(), password, roleTab);
-      localStorage.setItem('bb_token', resp.token);
-      localStorage.setItem('bb_user_id', resp.user.user_id);
-      onLoginSuccess(resp.user);
+      onLoginSuccess(resp);
+      // The modal stays mounted, and the next person at a shared kiosk must not inherit these
+      resetSignInFields(roleTab);
       showToast({ type: 'success', message: `Welcome back, ${resp.user.full_name} (${resp.user.enrollment_no})!` });
       onClose();
     } catch (err) {
@@ -69,9 +74,8 @@ export default function AuthModal({ isOpen, onClose, demoUsers, onLoginSuccess, 
         email: regEmail.trim().toLowerCase(),
         password: regPassword.trim(),
       });
-      localStorage.setItem('bb_token', resp.token);
-      localStorage.setItem('bb_user_id', resp.user.user_id);
-      onLoginSuccess(resp.user);
+      onLoginSuccess(resp);
+      setRegPassword('');
       showToast({ 
         type: 'success', 
         message: `Account created! Welcome to BookBase, ${resp.user.full_name} (${resp.user.enrollment_no})!` 

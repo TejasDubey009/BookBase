@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from app.core.clock import utc_now
 from app.core.errors import BadRequestError, NotFoundError
+from app.core.security import CurrentUser, issue_token
 from app.db.audit import log_audit
 from app.db.queries import BOOK_REQUEST_DETAILS_SELECT, LOAN_DETAILS_SELECT, QUEUE_POSITION_SUBQUERY
 from app.db.seed import seed_database
@@ -273,6 +274,15 @@ def settle_fine(db: sqlite3.Connection, payload: SettleFineRequest) -> dict:
     }
 
 
-def reset_demo(db: sqlite3.Connection) -> dict:
+def reset_demo(db: sqlite3.Connection, actor: CurrentUser) -> dict:
     seed_database(db, force_reset=True)
-    return {"success": True, "message": "BookBase database cleanly reset to demo state."}
+
+    # Re-seeding recreates every account, which ends all sessions. Keep the librarian who asked signed in.
+    cursor = db.cursor()
+    cursor.execute("SELECT user_id, created_at FROM users WHERE user_id = ? AND role = 'admin'", (actor.user_id,))
+    admin = cursor.fetchone()
+    return {
+        "success": True,
+        "message": "BookBase database cleanly reset to demo state.",
+        "token": issue_token(admin["user_id"], admin["created_at"]) if admin else None
+    }

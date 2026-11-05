@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api/bookbase';
+import { api, clearAuthToken, getAuthToken, setAuthToken, setSessionExpiredHandler } from '../api/bookbase';
 import { PORTALS } from '../constants/portals';
 
 const STORAGE_PORTAL = 'bb_active_portal';
-const STORAGE_USER_ID = 'bb_user_id';
-const STORAGE_TOKEN = 'bb_token';
+const LEGACY_STORAGE_USER_ID = 'bb_user_id';
 
 function readInitialPortal() {
   const hash = window.location.hash.replace('#', '');
@@ -30,38 +29,61 @@ export function useSession({ showToast, lastEventTimestamp, notifyDataChanged })
     window.location.hash = portal;
   };
 
-  // Initial load: fetch demo users and restore the saved persona (default: Tejas - CSBS2022001)
-  useEffect(() => {
-    api.getDemoUsers()
-      .then((users) => {
-        setDemoUsers(users);
-        const savedUserId = localStorage.getItem(STORAGE_USER_ID);
-        let initialUser = null;
-        if (savedUserId) {
-          initialUser = users.find((u) => u.user_id === parseInt(savedUserId, 10));
-        }
-        if (!initialUser) {
-          initialUser = users.find((u) => u.email === 'tejas@bookbase.in') || users[1] || users[0];
-        }
-        setCurrentUser(initialUser);
+  // The admin portal is only for librarians; anyone else lands back on the kiosk
+  const enterPortalAs = (user) => {
+    if (activePortal !== 'admin') return;
+    if (user?.role === 'admin') {
+      setCurrentView('admin-console');
+    } else {
+      setActivePortal('kiosk');
+      setCurrentView('catalog');
+    }
+  };
 
-        // If saved portal is admin but user is not admin, reset to kiosk
-        if (activePortal === 'admin' && initialUser?.role !== 'admin') {
-          setActivePortal('kiosk');
-          setCurrentView('catalog');
-        } else if (activePortal === 'admin' && initialUser?.role === 'admin') {
-          setCurrentView('admin-console');
-        }
+  // Initial load: the quick-select accounts (empty unless demo mode is on), then the saved session.
+  // Only the server can say who a stored token belongs to, so nothing else is kept in localStorage.
+  useEffect(() => {
+    localStorage.removeItem(LEGACY_STORAGE_USER_ID);
+
+    api.getDemoUsers()
+      .then(setDemoUsers)
+      .catch((err) => console.error('Failed to load demo accounts:', err));
+
+    if (!getAuthToken()) {
+      enterPortalAs(null);
+      return;
+    }
+    api.getCurrentUser()
+      .then((user) => {
+        setCurrentUser(user);
+        enterPortalAs(user);
       })
-      .catch((err) => console.error('Failed to load users:', err));
+      .catch((err) => {
+        console.error('Failed to restore session:', err);
+        enterPortalAs(null);
+      });
   }, []);
+
+  // The server rejected the stored token: it expired, or the demo database was reset
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setCurrentUser(null);
+      setPendingRequestsCount(0);
+      if (activePortal === 'admin') setActivePortal('kiosk');
+      setCurrentView('catalog');
+      showToast({ type: 'warning', message: 'Your session has ended. Please sign in again.' });
+      notifyDataChanged();
+    });
+  }, [activePortal]);
 
   // Refresh the user's quota and fines, and the admin's pending-request count, after every change
   useEffect(() => {
     if (!currentUser) return;
-    api.getCurrentUser(currentUser.user_id)
+    const token = getAuthToken();
+    api.getCurrentUser()
       .then((freshUser) => {
-        setCurrentUser(freshUser);
+        // Ignore a late reply if the user has signed out or switched account since asking
+        if (getAuthToken() === token) setCurrentUser(freshUser);
       })
       .catch(() => {});
 
@@ -75,9 +97,9 @@ export function useSession({ showToast, lastEventTimestamp, notifyDataChanged })
     }
   }, [lastEventTimestamp, currentUser?.user_id]);
 
-  const handleLoginSuccess = (user) => {
+  const handleLoginSuccess = ({ token, user }) => {
+    setAuthToken(token);
     setCurrentUser(user);
-    localStorage.setItem(STORAGE_USER_ID, user.user_id.toString());
     if (user.role === 'admin') {
       setActivePortal('admin');
       setCurrentView('admin-console');
@@ -92,9 +114,9 @@ export function useSession({ showToast, lastEventTimestamp, notifyDataChanged })
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(STORAGE_USER_ID);
+    clearAuthToken();
     setCurrentUser(null);
+    setPendingRequestsCount(0);
     if (activePortal === 'admin') {
       setActivePortal('kiosk');
     }
