@@ -1,5 +1,13 @@
 import { MapPin, Mail, Clock, BookMarked, GraduationCap, ShieldCheck, Library } from 'lucide-react';
 
+const WEEKDAY_HOURS = '8:00 AM – 8:00 PM';
+const WEEKEND_HOURS = '9:00 AM – 5:30 PM';
+
+function hoursToday() {
+  const day = new Date().getDay(); // 0 is Sunday, 6 is Saturday
+  return day === 0 || day === 6 ? WEEKEND_HOURS : WEEKDAY_HOURS;
+}
+
 export default function Footer({ policy }) {
   return (
     <footer className="mt-20 border-t border-slate-200/90 bg-white/80 backdrop-blur-md text-slate-600 text-xs">
@@ -9,7 +17,7 @@ export default function Footer({ policy }) {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span className="font-semibold text-white tracking-wide">
-              Central Library Circulation Desk — Open Today until 8:00 PM
+              Central Library Circulation Desk — Open Today {hoursToday()}
             </span>
           </div>
           <div className="flex items-center gap-4 text-xs font-medium">
@@ -59,15 +67,15 @@ export default function Footer({ policy }) {
             <ul className="space-y-2 text-xs text-slate-600">
               <li className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-slate-500">Monday – Friday</span>
-                <span className="font-medium text-slate-800">8:00 AM – 8:00 PM</span>
+                <span className="font-medium text-slate-800">{WEEKDAY_HOURS}</span>
               </li>
               <li className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-slate-500">Saturday – Sunday</span>
-                <span className="font-medium text-slate-800">9:00 AM – 5:30 PM</span>
+                <span className="font-medium text-slate-800">{WEEKEND_HOURS}</span>
               </li>
               <li className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-slate-500">Loan Duration</span>
-                <span className="font-medium text-slate-800">{policy.loanDays} Days (Renewable)</span>
+                <span className="font-medium text-slate-800">{policy.loanDays} Days</span>
               </li>
               <li className="flex justify-between">
                 <span className="text-slate-500">Overdue Retention Fee</span>
