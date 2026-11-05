@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../api/bookbase';
 import CopyDialog, { FIELD_CLASSES } from './CopyDialog';
+import { useKioskKey } from './useKioskKey';
 
 /**
  * Borrowing links one physical copy to the student's profile, so the student gives the unique code
@@ -9,6 +10,7 @@ import CopyDialog, { FIELD_CLASSES } from './CopyDialog';
 export default function BorrowCopyModal({ book, onClose, onBorrowed, showToast }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const kiosk = useKioskKey();
 
   const availableCopies = (book.copies || []).filter((copy) => copy.status === 'Available');
 
@@ -16,11 +18,13 @@ export default function BorrowCopyModal({ book, onClose, onBorrowed, showToast }
     e.preventDefault();
     setBusy(true);
     try {
-      const resp = await api.checkoutBook(book.book_id, code.trim());
+      const resp = await api.checkoutBook(book.book_id, code.trim(), kiosk.keyToSend);
+      kiosk.remember();
       showToast({ type: 'success', message: resp.message });
       onBorrowed();
       onClose();
     } catch (err) {
+      kiosk.noteError(err);
       showToast({ type: 'error', message: err.message });
     } finally {
       setBusy(false);
@@ -72,6 +76,8 @@ export default function BorrowCopyModal({ book, onClose, onBorrowed, showToast }
           </div>
         </div>
       )}
+
+      {kiosk.field}
     </CopyDialog>
   );
 }

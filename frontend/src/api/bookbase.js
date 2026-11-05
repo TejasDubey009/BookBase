@@ -6,12 +6,19 @@
 const BASE_URL = '/api/v1';
 // Each portal keeps its own sign-in, even when several are hosted on one domain
 const STORAGE_TOKEN = `bb_token_${import.meta.env.VITE_PORTAL}`;
+// Registers this browser as a kiosk. Unlike a sign-in, it stays when a student signs out.
+const STORAGE_KIOSK_KEY = 'bb_kiosk_key';
 
 let onSessionExpired = () => {};
 
 export const getAuthToken = () => localStorage.getItem(STORAGE_TOKEN);
 export const setAuthToken = (token) => localStorage.setItem(STORAGE_TOKEN, token);
 export const clearAuthToken = () => localStorage.removeItem(STORAGE_TOKEN);
+export const saveKioskKey = (key) => localStorage.setItem(STORAGE_KIOSK_KEY, key);
+
+/** For what a student may only do at the kiosk. Without a key given, sends the one this browser has. */
+const kioskHeaders = (kioskKey = localStorage.getItem(STORAGE_KIOSK_KEY)) =>
+  kioskKey ? { 'X-BookBase-Kiosk-Key': kioskKey } : {};
 
 /** Registers what to do when the server stops accepting the stored session token. */
 export const setSessionExpiredHandler = (handler) => {
@@ -40,8 +47,9 @@ async function request(endpoint, { skipAuth = false, ...options } = {}) {
   }
 
   if (!response.ok) {
-    const errorMsg = data?.detail || response.statusText || 'Request failed';
-    throw new Error(errorMsg);
+    const error = new Error(data?.detail || response.statusText || 'Request failed');
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -91,9 +99,10 @@ export const api = {
     }),
 
   // Circulation & Waitlist Engine
-  checkoutBook: (bookId, barcode) =>
+  checkoutBook: (bookId, barcode, kioskKey) =>
     request('/circulation/checkout', {
       method: 'POST',
+      headers: kioskHeaders(kioskKey),
       body: JSON.stringify({ book_id: bookId, barcode }),
     }),
 
@@ -108,9 +117,10 @@ export const api = {
       method: 'DELETE',
     }),
 
-  raiseReturnRequest: (returnRequest) =>
+  raiseReturnRequest: (returnRequest, kioskKey) =>
     request('/circulation/return-requests', {
       method: 'POST',
+      headers: kioskHeaders(kioskKey),
       body: JSON.stringify(returnRequest),
     }),
 

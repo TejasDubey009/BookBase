@@ -1,8 +1,10 @@
 """Who may call what. Every protected route must answer 401 or 403 before doing any work."""
 import pytest
 
+from app import config
+from app.core.auth import KIOSK_KEY_HEADER
 from app.main import app
-from tests.conftest import ADMIN_ID, AKASH_ID, TEJAS_ID, bearer, login
+from tests.conftest import ADMIN_ID, AKASH_ID, KIOSK_KEY, TEJAS_ID, at_kiosk, bearer, login
 
 API = "/api/v1"
 CLRS_BOOK_ID = 3
@@ -141,8 +143,56 @@ def test_book_request_belongs_to_the_caller(client, tejas, akash):
     assert forged.status_code == 403
 
 
+def _copies_issued(db, book_id: int) -> int:
+    return db.execute(
+        "SELECT COUNT(*) FROM book_copies WHERE book_id = ? AND status = 'Issued'", (book_id,)
+    ).fetchone()[0]
+
+
+@pytest.mark.parametrize("prefix", [API, "/v1"])
+def test_member_cannot_borrow_away_from_a_kiosk(client, akash, db, prefix):
+    response = client.post(f"{prefix}/circulation/checkout", headers=akash, json={"book_id": UNBORROWED_BOOK_ID})
+    assert response.status_code == 403
+    assert "Library Kiosk" in response.json()["detail"]
+    assert _copies_issued(db, UNBORROWED_BOOK_ID) == 0
+
+
+@pytest.mark.parametrize("wrong_key", ["", "not-the-kiosk-key", KIOSK_KEY + "x", "clé".encode("latin-1")])
+def test_member_cannot_borrow_with_a_wrong_kiosk_key(client, akash, db, wrong_key):
+    response = client.post(
+        f"{API}/circulation/checkout",
+        headers={**akash, KIOSK_KEY_HEADER: wrong_key},
+        json={"book_id": UNBORROWED_BOOK_ID},
+    )
+    assert response.status_code == 403
+    assert _copies_issued(db, UNBORROWED_BOOK_ID) == 0
+
+
+@pytest.mark.parametrize("sent_key", [None, "", "anything"])
+def test_with_no_kiosk_key_configured_no_member_can_borrow(client, akash, monkeypatch, sent_key):
+    monkeypatch.setattr("app.core.auth.KIOSK_KEY", "")
+    headers = akash if sent_key is None else {**akash, KIOSK_KEY_HEADER: sent_key}
+    response = client.post(f"{API}/circulation/checkout", headers=headers, json={"book_id": UNBORROWED_BOOK_ID})
+    assert response.status_code == 403
+
+
+def test_the_kiosk_key_does_not_replace_signing_in(client):
+    response = client.post(
+        f"{API}/circulation/checkout", headers={KIOSK_KEY_HEADER: KIOSK_KEY}, json={"book_id": UNBORROWED_BOOK_ID}
+    )
+    assert response.status_code == 401
+
+
+def test_a_short_kiosk_key_is_refused_at_startup(monkeypatch):
+    monkeypatch.setenv("BOOKBASE_KIOSK_KEY", "too-short")
+    with pytest.raises(RuntimeError):
+        config._resolve_kiosk_key()
+
+
 def test_checkout_acts_as_the_caller(client, akash):
-    response = client.post(f"{API}/circulation/checkout", headers=akash, json={"book_id": UNBORROWED_BOOK_ID})
+    response = client.post(
+        f"{API}/circulation/checkout", headers=at_kiosk(akash), json={"book_id": UNBORROWED_BOOK_ID}
+    )
     assert response.status_code == 200
 
     dashboard = client.get(f"{API}/users/{AKASH_ID}/dashboard", headers=akash).json()
@@ -151,13 +201,12 @@ def test_checkout_acts_as_the_caller(client, akash):
 
 def test_member_cannot_check_out_for_someone_else(client, akash, db):
     response = client.post(
-        f"{API}/circulation/checkout", headers=akash, json={"user_id": TEJAS_ID, "book_id": UNBORROWED_BOOK_ID}
+        f"{API}/circulation/checkout",
+        headers=at_kiosk(akash),
+        json={"user_id": TEJAS_ID, "book_id": UNBORROWED_BOOK_ID},
     )
     assert response.status_code == 403
-    copies_issued = db.execute(
-        "SELECT COUNT(*) FROM book_copies WHERE book_id = ? AND status = 'Issued'", (UNBORROWED_BOOK_ID,)
-    ).fetchone()[0]
-    assert copies_issued == 0
+    assert _copies_issued(db, UNBORROWED_BOOK_ID) == 0
 
 
 def test_admin_can_check_out_for_a_patron(client, admin, akash):
@@ -204,10 +253,16 @@ def _return_request(db, loan_id: int) -> dict:
     return {"loan_id": loan_id, "barcode": barcode, "condition": "Good"}
 
 
+def _pending_return_requests(db) -> int:
+    return db.execute("SELECT COUNT(*) FROM return_requests WHERE status = 'Pending'").fetchone()[0]
+
+
 def test_member_cannot_raise_a_return_for_someone_elses_loan(client, akash, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
 
-    response = client.post(f"{API}/circulation/return-requests", headers=akash, json=_return_request(db, loan["loan_id"]))
+    response = client.post(
+        f"{API}/circulation/return-requests", headers=at_kiosk(akash), json=_return_request(db, loan["loan_id"])
+    )
 
     assert response.status_code == 403
     assert _active_loan(db, DDIA_BOOK_ID)["loan_id"] == loan["loan_id"]
@@ -215,13 +270,37 @@ def test_member_cannot_raise_a_return_for_someone_elses_loan(client, akash, db):
 
 def test_member_can_raise_a_return_for_their_own_loan(client, tejas, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
-    response = client.post(f"{API}/circulation/return-requests", headers=tejas, json=_return_request(db, loan["loan_id"]))
+    response = client.post(
+        f"{API}/circulation/return-requests", headers=at_kiosk(tejas), json=_return_request(db, loan["loan_id"])
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.parametrize("wrong_key", [None, "not-the-kiosk-key"])
+def test_member_cannot_raise_a_return_away_from_a_kiosk(client, tejas, db, wrong_key):
+    # Raising a return stops the fine, so it must not be possible from home either
+    loan = _active_loan(db, DDIA_BOOK_ID)
+    headers = tejas if wrong_key is None else {**tejas, KIOSK_KEY_HEADER: wrong_key}
+    before = _pending_return_requests(db)
+
+    response = client.post(f"{API}/circulation/return-requests", headers=headers, json=_return_request(db, loan["loan_id"]))
+
+    assert response.status_code == 403
+    assert "Library Kiosk" in response.json()["detail"]
+    assert _pending_return_requests(db) == before
+
+
+def test_admin_can_raise_a_return_for_a_patron_from_anywhere(client, admin, db):
+    loan = _active_loan(db, DDIA_BOOK_ID)
+    response = client.post(f"{API}/circulation/return-requests", headers=admin, json=_return_request(db, loan["loan_id"]))
     assert response.status_code == 201
 
 
 def test_member_cannot_confirm_their_own_return(client, tejas, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
-    raised = client.post(f"{API}/circulation/return-requests", headers=tejas, json=_return_request(db, loan["loan_id"])).json()
+    raised = client.post(
+        f"{API}/circulation/return-requests", headers=at_kiosk(tejas), json=_return_request(db, loan["loan_id"])
+    ).json()
 
     confirm = client.post(
         f"{API}/circulation/return-requests/{raised['return_request_id']}/confirm",

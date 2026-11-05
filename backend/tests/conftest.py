@@ -18,6 +18,7 @@ _POSTGRES_URL = os.environ.get("TEST_DATABASE_URL", "").strip()
 
 ADMIN_PASSWORD = "test-only-librarian-password"
 STAFF_CODE = "test-only-staff-code"
+KIOSK_KEY = "test-only-kiosk-key"
 
 # config.py reads these on import, so they must be set before anything imports the app.
 # DATABASE_URL is always overwritten and backend/.env skipped: these tests wipe their database.
@@ -27,6 +28,7 @@ os.environ["DB_PATH"] = str(_DB_PATH)
 os.environ["BOOKBASE_SECRET_KEY"] = "test-only-signing-key-that-is-long-enough-for-hs256"
 os.environ["BOOKBASE_ADMIN_PASSWORD"] = ADMIN_PASSWORD
 os.environ["BOOKBASE_STAFF_SIGNUP_CODE"] = STAFF_CODE
+os.environ["BOOKBASE_KIOSK_KEY"] = KIOSK_KEY
 os.environ.pop("BOOKBASE_DEMO_MODE", None)
 os.environ.pop("BOOKBASE_CORS_ORIGINS", None)
 os.environ.pop("VERCEL", None)
@@ -36,6 +38,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from psycopg import conninfo  # noqa: E402
 
+from app.core.auth import KIOSK_KEY_HEADER  # noqa: E402
 from app.db.connection import IS_POSTGRES, get_raw_connection  # noqa: E402
 from app.db.seed import seed_database  # noqa: E402
 from app.main import app  # noqa: E402
@@ -115,6 +118,11 @@ def login(client: TestClient, identifier: str, password: str, role: str = "membe
 
 def bearer(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
+
+def at_kiosk(headers: dict) -> dict:
+    """The same caller, coming through a registered kiosk."""
+    return {**headers, KIOSK_KEY_HEADER: KIOSK_KEY}
 
 
 @pytest.fixture

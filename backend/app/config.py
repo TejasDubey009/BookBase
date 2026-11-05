@@ -42,6 +42,20 @@ def _resolve_secret_key() -> str:
     return secrets.token_urlsafe(48)
 
 
+def _resolve_kiosk_key() -> str:
+    """
+    Held only by registered kiosks: a student's borrow or return request counts only if it arrives
+    with this key. Without one only librarians can do either, because a rule about being at the
+    library should fail shut. run.py makes one for local runs, and Vercel has to be given one.
+    """
+    key = os.getenv("BOOKBASE_KIOSK_KEY", "").strip()
+    if key and len(key) < 16:
+        raise RuntimeError("BOOKBASE_KIOSK_KEY must be at least 16 characters long.")
+    if not key:
+        print("Warning: BOOKBASE_KIOSK_KEY is not set, so students can't borrow or return books until it is.")
+    return key
+
+
 def _resolve_cors_origins() -> List[str]:
     """Portal sites reach the API through their own address, so only direct calls to it use this."""
     configured = [origin.strip() for origin in os.getenv("BOOKBASE_CORS_ORIGINS", "").split(",")]
@@ -55,6 +69,7 @@ DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "bookbase.db"))
 # Authentication
 SECRET_KEY = _resolve_secret_key()
 TOKEN_TTL_MINUTES = int(os.getenv("BOOKBASE_TOKEN_TTL_MINUTES", "480"))
+KIOSK_KEY = _resolve_kiosk_key()
 CORS_ORIGINS = _resolve_cors_origins()
 MIN_PASSWORD_LENGTH = 8
 # Lists the seeded student accounts and their passwords in the sign-in modal. Off unless asked for.

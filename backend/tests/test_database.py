@@ -11,7 +11,7 @@ from app.db.postgres import _ssl_options
 from app.db.schema import POSTGRES_SCHEMA_PATH, SQLITE_SCHEMA_SQL
 from app.schemas.circulation import CheckoutRequest, ReturnRequestConfirm
 from app.services import circulation_service
-from tests.conftest import ADMIN_ID, AKASH_ID, TEJAS_ID
+from tests.conftest import ADMIN_ID, AKASH_ID, TEJAS_ID, at_kiosk
 
 MEMBER_IDS = [2, 3, 4, 5, 6]
 TWO_COPY_BOOK_ID = 1
@@ -121,7 +121,7 @@ def test_two_librarians_confirming_one_return_charge_the_fine_once(client, tejas
     ).fetchone()
     raised = client.post(
         "/api/v1/circulation/return-requests",
-        headers=tejas,
+        headers=at_kiosk(tejas),
         json={"loan_id": loan["loan_id"], "barcode": loan["barcode"], "condition": "Good"}
     ).json()
     librarian = CurrentUser(user_id=ADMIN_ID, role="admin")

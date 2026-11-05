@@ -171,7 +171,7 @@ The three portals are separate websites, each with its own address and its own s
 | **Admin Portal** | [http://localhost:3003](http://localhost:3003) | Confirming returns, fines and catalog management | Library staff |
 | **REST API docs** | [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs) | Interactive API reference | Not applicable |
 
-Ports are set in `frontend/portals.json`. To work on one site, run the API and then `npm run dev:kiosk`, `dev:student` or `dev:admin` in `frontend/`.
+Ports are set in `frontend/portals.json`. To work on one site, run the API and then `npm run dev:kiosk`, `dev:student` or `dev:admin` in `frontend/`. For students to borrow that way, set the same `BOOKBASE_KIOSK_KEY` for the API and for `dev:kiosk`.
 
 ### Using Supabase
 
@@ -194,9 +194,19 @@ One Vercel project serves all three sites and the API. `npm run build` produces 
 
 1. Set up Supabase first, and run the app once locally against it so the tables exist.
 2. Set `DATABASE_URL` and `BOOKBASE_SECRET_KEY` in the project's environment variables (see Configuration below). The API refuses to start on Vercel without them.
-3. In the project's **Settings → Domains**, add one domain per portal with `kiosk`, `student` or `admin` in its name, such as `bookbase-kiosk.vercel.app` or `admin.yourcollege.edu`. Each of those addresses then opens its own site.
+3. Set `BOOKBASE_KIOSK_KEY` there too, then register each kiosk (see below). Until then, students can't borrow or raise returns.
+4. In the project's **Settings → Domains**, add one domain per portal with `kiosk`, `student` or `admin` in its name, such as `bookbase-kiosk.vercel.app` or `admin.yourcollege.edu`. Each of those addresses then opens its own site.
 
 Without those domains, the same sites are at `/kiosk/`, `/student/` and `/admin/` on the project's main address, which opens the kiosk.
+
+### Registering a kiosk
+
+The server only takes a student's borrow or return request if it carries the kiosk key, so the Student Portal, or a direct call to the API, gets a 403. Return requests are included because raising one stops the fine. Librarians can do both from anywhere.
+
+- **Locally**, `run.py` makes a key for each run and gives it to the kiosk's dev server, which adds it to every API request. The browser never sees it, so there is nothing to set up. Anyone who can open `localhost:3001` can borrow and return.
+- **On Vercel**, nothing can add the key on the kiosk's behalf, so each device has to be registered. Open the kiosk site on that device, sign in and try to borrow or return a book. The dialog then asks for the kiosk key, and once a librarian has entered it, that browser remembers it. A student opening the kiosk's address from anywhere else can't borrow or return.
+
+The registered browser stores the key, so anyone with access to its developer tools can copy it. Lock the kiosk device down, and change `BOOKBASE_KIOSK_KEY` if the key leaks, which means registering every kiosk again.
 
 ### Configuration
 
@@ -204,6 +214,7 @@ Without those domains, the same sites are at `/kiosk/`, `/student/` and `/admin/
 | :--- | :--- | :--- |
 | `DATABASE_URL` | **Required on Vercel** | The PostgreSQL connection string, such as Supabase's. Without it, local runs use a SQLite file. |
 | `BOOKBASE_SECRET_KEY` | **Required on Vercel** | Signs session tokens, and must be at least 32 characters. The API refuses to start on Vercel without it. `run.py` generates one for each run, so local sessions end when you restart it. |
+| `BOOKBASE_KIOSK_KEY` | **Needed on Vercel for students to borrow** | Students can only borrow, or raise returns, through a kiosk holding this key, and it must be at least 16 characters. Without it, only librarians can do either. `run.py` generates one for each run. Generate one yourself with `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`. |
 | `BOOKBASE_ADMIN_PASSWORD` | Recommended | The seeded librarian's password. It also changes the password on an existing database when the API starts. If unset, one is generated when the database is first seeded and printed once. |
 | `BOOKBASE_STAFF_SIGNUP_CODE` | Optional | Whoever knows this code can sign up as library staff on the admin portal. If unset, nobody can. |
 | `BOOKBASE_DEMO_MODE` | Optional | `1` lists the seeded student accounts and their passwords in the sign-in modal, never a librarian's. `run.py` turns this on. Everywhere else it is off unless you set it, and it should stay off on a public deployment. |
@@ -308,6 +319,7 @@ Sign in with `POST /api/v1/auth/login`, then send the token it returns as `Autho
 | **Public** | Anyone, with no token |
 | **Signed in** | Any valid token. The route acts on the caller's own account |
 | **Owner or admin** | A member acting on their own data, or an admin acting on anyone's |
+| **Kiosk or admin** | The same, except that a member must also send the kiosk key as `X-BookBase-Kiosk-Key` |
 | **Admin** | Librarian accounts only |
 
 - **401** means there is no token, or the token is invalid or expired. A token that is sent must be valid, even on a public route.
@@ -338,10 +350,10 @@ Sign in with `POST /api/v1/auth/login`, then send the token it returns as `Autho
 
 | Route | Access | Purpose |
 | :--- | :--- | :--- |
-| `POST /api/v1/circulation/checkout` | Owner or admin | Atomic loan checkout with row-level locking. `barcode` names the physical copy |
+| `POST /api/v1/circulation/checkout` | Kiosk or admin | Atomic loan checkout with row-level locking. `barcode` names the physical copy |
 | `POST /api/v1/circulation/waitlist` | Owner or admin | Atomic FIFO queue registration |
 | `DELETE /api/v1/circulation/waitlist/{id}` | Owner or admin | Cancel waiting reservation |
-| `POST /api/v1/circulation/return-requests` | Owner or admin | Raise a return, with `loan_id`, the `barcode` on the book's label, its `condition` and optional `notes` |
+| `POST /api/v1/circulation/return-requests` | Kiosk or admin | Raise a return, with `loan_id`, the `barcode` on the book's label, its `condition` and optional `notes` |
 | `POST /api/v1/circulation/return-requests/{id}/confirm` | Admin | Complete the return with the `condition` the librarian saw: fine calculation & automated FIFO waitlist handoff |
 | `POST /api/v1/circulation/return-requests/{id}/reject` | Admin | Refuse a request. The loan stays active and the student can raise it again |
 | `GET /api/v1/policy` | Public | The lending rules from `config.py`: `overdue_fine_rate_per_day`, `max_fine_days`, `loan_duration_days`, `max_loans_per_user` and `copy_conditions`. The footer shows them before sign-in. `max_loans_per_user` is the quota new accounts get; checkout enforces each account's stored `max_books_quota`, so changing it does not affect existing accounts |

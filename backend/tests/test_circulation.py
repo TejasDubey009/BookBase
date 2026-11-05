@@ -5,7 +5,7 @@ import pytest
 
 from app import config
 from app.services.circulation_service import calculate_overdue_fine
-from tests.conftest import AKASH_ID, TEJAS_ID
+from tests.conftest import AKASH_ID, TEJAS_ID, at_kiosk
 
 API = "/api/v1"
 CLRS_BOOK_ID = 3  # One copy, overdue with Tejas, and Akash is Queue #1
@@ -33,13 +33,15 @@ def _active_loan(db, book_id: int):
 
 
 def _borrow(client, headers, book_id, barcode=None):
-    return client.post(f"{API}/circulation/checkout", headers=headers, json={"book_id": book_id, "barcode": barcode})
+    return client.post(
+        f"{API}/circulation/checkout", headers=at_kiosk(headers), json={"book_id": book_id, "barcode": barcode}
+    )
 
 
 def _raise_return(client, headers, loan, condition="Good"):
     return client.post(
         f"{API}/circulation/return-requests",
-        headers=headers,
+        headers=at_kiosk(headers),
         json={"loan_id": loan["loan_id"], "barcode": loan["barcode"], "condition": condition}
     )
 
@@ -143,7 +145,7 @@ def test_the_wrong_copy_code_cannot_raise_a_return(client, tejas, db):
     loan = _active_loan(db, DDIA_BOOK_ID)
     response = client.post(
         f"{API}/circulation/return-requests",
-        headers=tejas,
+        headers=at_kiosk(tejas),
         json={"loan_id": loan["loan_id"], "barcode": "LIB-CSBS-001A", "condition": "Good"}
     )
     assert response.status_code == 400

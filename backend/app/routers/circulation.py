@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, Depends, status
 
-from app.core.auth import get_current_user, require_admin
+from app.core.auth import get_current_user, require_admin, require_kiosk_or_admin
 from app.core.security import CurrentUser, resolve_target_user
 from app.db.connection import get_db
 from app.db.types import Connection
@@ -22,11 +22,12 @@ router = APIRouter(prefix="/circulation", tags=["Circulation & FIFO Waitlist Eng
 @router.post("/checkout", response_model=CheckoutResponse)
 def checkout_book(
     payload: CheckoutRequest,
-    actor: CurrentUser = Depends(get_current_user),
+    actor: CurrentUser = Depends(require_kiosk_or_admin),
     db: Connection = Depends(get_db)
 ):
     """
-    Atomic Checkout Transaction:
+    Atomic Checkout Transaction. Students must come through a registered kiosk, by sending its key
+    in the X-BookBase-Kiosk-Key header. Librarians can check out from anywhere.
     1. Validates user's loan quota and outstanding fines.
     2. Validates user does not already hold this title.
     3. Locks first available physical copy (status = 'Available').
@@ -69,12 +70,13 @@ def cancel_waitlist(
 @router.post("/return-requests", status_code=status.HTTP_201_CREATED)
 def raise_return_request(
     payload: ReturnRequestCreate,
-    actor: CurrentUser = Depends(get_current_user),
+    actor: CurrentUser = Depends(require_kiosk_or_admin),
     db: Connection = Depends(get_db)
 ):
     """
     A student asks to return a loan, giving the code on the book's label and its condition.
     The request then appears in the admin portal, where a librarian confirms or rejects it.
+    Like borrowing, students must come through a registered kiosk, since raising one stops the fine.
     """
     return circulation_service.raise_return_request(db, payload, actor)
 

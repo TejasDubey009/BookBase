@@ -12,6 +12,9 @@ export default defineConfig(({ command, mode, isPreview }) => {
     throw new Error(`Unknown portal "${mode}". Run Vite with --mode ${Object.keys(portals).join(', --mode ')}.`);
   }
 
+  // Added here on the server, so the browser never sees the key and the other two sites don't have it
+  const kioskKey = mode === 'kiosk' ? process.env.BOOKBASE_KIOSK_KEY : undefined;
+
   const serverOptions = {
     port: portal.port,
     strictPort: true, // a portal's address must not silently change if its port is taken
@@ -19,6 +22,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
       '/api': {
         target: process.env.BOOKBASE_API_URL || 'http://127.0.0.1:8001',
         changeOrigin: true,
+        ...(kioskKey && { headers: { 'X-BookBase-Kiosk-Key': kioskKey } }),
       },
     },
   };

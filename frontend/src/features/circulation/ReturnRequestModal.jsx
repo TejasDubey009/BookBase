@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../../api/bookbase';
 import CopyDialog, { FIELD_CLASSES } from './CopyDialog';
+import { useKioskKey } from './useKioskKey';
 
 /**
  * A student asks to return a loan. The code proves which physical copy is being handed in, which
@@ -11,16 +12,22 @@ export default function ReturnRequestModal({ loan, conditions, onClose, onRaised
   const [condition, setCondition] = useState('Good');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
+  const kiosk = useKioskKey();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      const resp = await api.raiseReturnRequest({ loan_id: loan.loan_id, barcode: code.trim(), condition, notes: notes.trim() });
+      const resp = await api.raiseReturnRequest(
+        { loan_id: loan.loan_id, barcode: code.trim(), condition, notes: notes.trim() },
+        kiosk.keyToSend,
+      );
+      kiosk.remember();
       showToast({ type: 'success', message: resp.message });
       onRaised();
       onClose();
     } catch (err) {
+      kiosk.noteError(err);
       showToast({ type: 'error', message: err.message });
     } finally {
       setBusy(false);
@@ -75,6 +82,8 @@ export default function ReturnRequestModal({ loan, conditions, onClose, onRaised
           className={FIELD_CLASSES}
         />
       </div>
+
+      {kiosk.field}
     </CopyDialog>
   );
 }

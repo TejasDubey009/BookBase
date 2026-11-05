@@ -33,6 +33,18 @@ if not VITE.exists():
     print("Installing frontend dependencies...")
     subprocess.run(["npm", "install"], cwd=str(FRONTEND_DIR), check=True)
 
+
+def resolve_kiosk_key() -> str:
+    """The key the API will end up with, since backend/.env wins there, or a new one for this run."""
+    env_file = BACKEND_DIR / ".env"
+    if env_file.exists() and not os.getenv("BOOKBASE_SKIP_DOTENV"):
+        for line in env_file.read_text().splitlines():
+            name, _, value = line.partition("=")
+            if name.strip() == "BOOKBASE_KIOSK_KEY" and value.strip():
+                return value.strip().strip("\"'")
+    return os.getenv("BOOKBASE_KIOSK_KEY") or secrets.token_urlsafe(32)
+
+
 api_port = os.getenv("PORT", "8001")
 portals = json.loads((FRONTEND_DIR / "portals.json").read_text())
 
@@ -50,7 +62,10 @@ api_env = dict(os.environ, PYTHONPATH=str(BACKEND_DIR))
 # modal, and sessions survive auto-reloads
 api_env.setdefault("BOOKBASE_DEMO_MODE", "1")
 api_env.setdefault("BOOKBASE_SECRET_KEY", secrets.token_urlsafe(48))
-vite_env = dict(os.environ, BOOKBASE_API_URL=f"http://127.0.0.1:{api_port}")
+# Only the kiosk's site uses this (see vite.config.js), so students can borrow there with no setup
+kiosk_key = resolve_kiosk_key()
+api_env["BOOKBASE_KIOSK_KEY"] = kiosk_key
+vite_env = dict(os.environ, BOOKBASE_API_URL=f"http://127.0.0.1:{api_port}", BOOKBASE_KIOSK_KEY=kiosk_key)
 
 processes = [
     subprocess.Popen(

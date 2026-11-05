@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import CORS_ORIGINS
+from app.core.auth import KIOSK_KEY_HEADER
 from app.core.errors import ServiceError
 from app.db.connection import INTEGRITY_ERRORS, IS_POSTGRES, get_raw_connection
 from app.db.seed import seed_database
@@ -39,7 +40,7 @@ app.add_middleware(
     allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", KIOSK_KEY_HEADER],
 )
 
 
