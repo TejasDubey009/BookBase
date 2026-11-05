@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 class LendingPolicyOut(BaseModel):
     overdue_fine_rate_per_day: float
+    loan_duration_days: int
+    max_loans_per_user: int  # The quota new accounts get. Checkout enforces each account's max_books_quota.
 
 
 class CheckoutRequest(BaseModel):

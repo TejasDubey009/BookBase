@@ -1,6 +1,6 @@
 import { Clock, HelpCircle, Mail, MapPin, PhoneCall, ShieldCheck } from 'lucide-react';
 
-export default function HelpDeskTab({ fineRate }) {
+export default function HelpDeskTab({ policy }) {
   return (
     <div id="helpdesk-section" className="space-y-6">
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
@@ -49,15 +49,15 @@ export default function HelpDeskTab({ fineRate }) {
             <div className="space-y-1.5 text-xs text-slate-600">
               <div className="flex justify-between">
                 <span>Borrowing Quota:</span>
-                <span className="font-bold text-slate-800">4 Books per Student</span>
+                <span className="font-bold text-slate-800">{policy.maxLoans} Books per Student</span>
               </div>
               <div className="flex justify-between">
                 <span>Loan Duration:</span>
-                <span className="font-bold text-slate-800">14 Calendar Days</span>
+                <span className="font-bold text-slate-800">{policy.loanDays} Calendar Days</span>
               </div>
               <div className="flex justify-between">
                 <span>Late Return Penalty:</span>
-                <span className="font-mono font-bold text-rose-600">{fineRate} / day / book</span>
+                <span className="font-mono font-bold text-rose-600">{policy.fineRate} / day / book</span>
               </div>
             </div>
             <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500">

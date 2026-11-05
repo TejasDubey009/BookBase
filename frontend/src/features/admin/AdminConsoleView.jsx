@@ -18,7 +18,7 @@ export default function AdminConsoleView({
   loadingActionId,
   showToast,
   lastEventTimestamp,
-  fineRate
+  policy
 }) {
   const [activeTab, setActiveTab] = useState('matrix'); // 'matrix' | 'circulation' | 'requests' | 'fines' | 'waitlist'
   const [filterOverdue, setFilterOverdue] = useState(false);
@@ -47,7 +47,7 @@ export default function AdminConsoleView({
     <div className="space-y-6 max-w-7xl mx-auto">
       <AdminHeader onRefresh={fetchOverview} onOpenAddBook={onOpenAddBook} onResetDemo={onResetDemo} />
 
-      <AdminKpiGrid kpis={kpis} requestsCount={bookRequests.length} pendingRequestsCount={pendingRequestsCount} fineRate={fineRate} />
+      <AdminKpiGrid kpis={kpis} requestsCount={bookRequests.length} pendingRequestsCount={pendingRequestsCount} fineRate={policy.fineRate} />
 
       <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
         <TabButton active={activeTab === 'matrix'} onClick={() => setActiveTab('matrix')} icon={BookOpen}>
@@ -93,7 +93,7 @@ export default function AdminConsoleView({
         />
       )}
       {activeTab === 'requests' && <RequestsTab bookRequests={bookRequests} onUpdateStatus={updateRequestStatus} />}
-      {activeTab === 'fines' && <FinesTab kpis={kpis} students={data?.student_fines || []} fineRate={fineRate} onSettleFine={settleFine} />}
+      {activeTab === 'fines' && <FinesTab kpis={kpis} students={data?.student_fines || []} policy={policy} onSettleFine={settleFine} />}
       {activeTab === 'waitlist' && <WaitlistTab waitlistQueue={waitlistQueue} />}
     </div>
   );

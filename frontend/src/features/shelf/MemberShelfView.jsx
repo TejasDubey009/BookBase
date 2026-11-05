@@ -20,7 +20,7 @@ export default function MemberShelfView({
   onOpenBookRequest,
   loadingActionId,
   showToast,
-  fineRate
+  policy
 }) {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +101,7 @@ export default function MemberShelfView({
       {activeTab === 'requests' && (
         <MyRequestsTab bookRequests={bookRequests} onOpenBookRequest={onOpenBookRequest} />
       )}
-      {activeTab === 'helpdesk' && <HelpDeskTab fineRate={fineRate} />}
+      {activeTab === 'helpdesk' && <HelpDeskTab policy={policy} />}
       {activeTab === 'history' && history.length > 0 && <HistoryTab history={history} />}
     </div>
   );

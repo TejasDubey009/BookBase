@@ -236,7 +236,7 @@ All frontend operations strictly communicate through these endpoints:
 - `POST /api/v1/circulation/waitlist` — Atomic FIFO queue registration
 - `DELETE /api/v1/circulation/waitlist/{id}` — Cancel waiting reservation
 - `POST /api/v1/circulation/return` — Return processing with overdue fine calculation & automated FIFO waitlist handoff
-- `GET /api/v1/policy` — The daily overdue fine from `config.py`, as `overdue_fine_rate_per_day`. Public, because the footer shows it before sign-in.
+- `GET /api/v1/policy` — The lending rules from `config.py`: `overdue_fine_rate_per_day`, `loan_duration_days` and `max_loans_per_user`. Public, because the footer shows them before sign-in. `max_loans_per_user` is the quota new accounts get; checkout enforces each account's stored `max_books_quota`, so changing it does not affect existing accounts.
 
 ### Dashboards & Admin
 - `GET /api/v1/users/{user_id}/dashboard` — Active loans, countdowns, waitlist cards, borrowing history

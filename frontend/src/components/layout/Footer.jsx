@@ -1,6 +1,6 @@
 import { MapPin, Mail, Clock, BookMarked, GraduationCap, ShieldCheck, Library } from 'lucide-react';
 
-export default function Footer({ fineRate }) {
+export default function Footer({ policy }) {
   return (
     <footer className="mt-20 border-t border-slate-200/90 bg-white/80 backdrop-blur-md text-slate-600 text-xs">
       {/* Top Banner: Circulation Desk Status */}
@@ -15,7 +15,7 @@ export default function Footer({ fineRate }) {
           <div className="flex items-center gap-4 text-xs font-medium">
             <span className="flex items-center gap-1 text-indigo-300">
               <Clock className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Standard 14-Day Loan Policy</span>
+              <span>Standard {policy.loanDays}-Day Loan Policy</span>
             </span>
             <span className="opacity-40">•</span>
             <a href="mailto:library.desk@bookbase.in" className="hover:text-white transition-colors flex items-center gap-1">
@@ -67,11 +67,11 @@ export default function Footer({ fineRate }) {
               </li>
               <li className="flex justify-between border-b border-slate-100 pb-1.5">
                 <span className="text-slate-500">Loan Duration</span>
-                <span className="font-medium text-slate-800">14 Days (Renewable)</span>
+                <span className="font-medium text-slate-800">{policy.loanDays} Days (Renewable)</span>
               </li>
               <li className="flex justify-between">
                 <span className="text-slate-500">Overdue Retention Fee</span>
-                <span className="font-medium text-rose-600 font-mono">{fineRate} / day</span>
+                <span className="font-medium text-rose-600 font-mono">{policy.fineRate} / day</span>
               </li>
             </ul>
           </div>

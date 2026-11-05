@@ -6,7 +6,12 @@ import datetime
 import sqlite3
 from typing import Optional
 
-from app.config import LOAN_DURATION_DAYS, MAX_OUTSTANDING_FINES_FOR_BORROWING, OVERDUE_FINE_RATE_PER_DAY
+from app.config import (
+    LOAN_DURATION_DAYS,
+    MAX_LOANS_PER_USER,
+    MAX_OUTSTANDING_FINES_FOR_BORROWING,
+    OVERDUE_FINE_RATE_PER_DAY,
+)
 from app.core.clock import utc_now, utc_now_iso
 from app.core.errors import BadRequestError, ConflictError, NotFoundError
 from app.db.audit import log_audit
@@ -35,7 +40,11 @@ _ACTIVE_LOAN_DETAILS_SELECT = """
 
 
 def get_lending_policy() -> LendingPolicyOut:
-    return LendingPolicyOut(overdue_fine_rate_per_day=OVERDUE_FINE_RATE_PER_DAY)
+    return LendingPolicyOut(
+        overdue_fine_rate_per_day=OVERDUE_FINE_RATE_PER_DAY,
+        loan_duration_days=LOAN_DURATION_DAYS,
+        max_loans_per_user=MAX_LOANS_PER_USER
+    )
 
 
 def overdue_days(due_date: datetime.datetime, at: datetime.datetime) -> int:
