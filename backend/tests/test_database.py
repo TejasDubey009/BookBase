@@ -9,6 +9,7 @@ from app.core.security import CurrentUser
 from app.db.connection import IS_POSTGRES, get_raw_connection
 from app.db.postgres import _ssl_options
 from app.db.schema import POSTGRES_SCHEMA_PATH, SQLITE_SCHEMA_SQL
+from app.db.seed_data import USERS
 from app.schemas.circulation import CheckoutRequest, ReturnRequestConfirm
 from app.services import circulation_service
 from tests.conftest import ADMIN_ID, AKASH_ID, TEJAS_ID, at_kiosk
@@ -150,7 +151,7 @@ def test_supabases_public_api_role_can_read_nothing(db):
         db.execute("RESET ROLE")
         db.execute("REVOKE ALL ON users FROM anon")
         db.execute("DROP ROLE anon")
-    assert db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 6
+    assert db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == len(USERS)
 
 
 @postgres_only

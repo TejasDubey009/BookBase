@@ -9,7 +9,7 @@ from app.core.security import hash_password, verify_password
 from app.db.audit import log_audit
 from app.db.connection import IS_POSTGRES
 from app.db.schema import init_db_schema, lock_database_setup
-from app.db.seed_data import BOOKS, SAMPLE_REQUESTS, USERS
+from app.db.seed_data import BOOKS, RETIRED_DEMO_ACCOUNTS, SAMPLE_REQUESTS, USERS
 from app.db.types import Connection
 
 # Book 3 (CLRS) and book 14 (DDIA) start with a single, already-issued copy so the
@@ -106,6 +106,54 @@ def _seed_users(conn: Connection, now_iso: str, current_librarian_hash: Optional
             role, quota, fines, now_iso
         ) for name, enrollment, email, password, role, quota, fines in USERS]
     )
+
+
+def _add_missing_seeded_students(conn: Connection) -> None:
+    """Seeding only fills an empty database, so one seeded earlier gets later additions here."""
+    for name, enrollment, email, password, role, quota, fines in USERS:
+        if role != "member":
+            continue
+        # Someone may have signed up with either value since, and both must stay unique
+        taken = conn.execute(
+            "SELECT 1 FROM users WHERE UPPER(enrollment_no) = ? OR LOWER(email) = ?",
+            (enrollment.upper(), email.lower())
+        ).fetchone()
+        if taken:
+            continue
+        conn.execute(
+            """
+            INSERT INTO users (full_name, enrollment_no, email, password_hash, role, max_books_quota, outstanding_fines, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (name, enrollment, email, hash_password(password), role, quota, fines, utc_now_iso())
+        )
+        print(f"Added seeded student {name} ({enrollment}).")
+
+
+def _remove_retired_demo_accounts(conn: Connection) -> None:
+    """
+    Removes these from databases that already hold them, along with their book requests, waitlist
+    spots and audit entries. An account with loan records stays, because those must be kept.
+    """
+    for full_name, enrollment, email in RETIRED_DEMO_ACCOUNTS:
+        account = conn.execute(
+            "SELECT user_id FROM users WHERE enrollment_no = ? AND email = ?",
+            (enrollment, email)
+        ).fetchone()
+        if not account:
+            continue
+
+        has_loans = conn.execute("SELECT 1 FROM circulation_loans WHERE user_id = ? LIMIT 1", (account[0],)).fetchone()
+        if has_loans:
+            print(f"Keeping retired demo account {full_name} ({enrollment}): it has loan records.")
+            continue
+
+        conn.execute(
+            "DELETE FROM db_audit_logs WHERE sql_summary LIKE ? OR affected_entities LIKE ?",
+            (f"%{full_name}%", f"%{email}%")
+        )
+        conn.execute("DELETE FROM users WHERE user_id = ?", (account[0],))
+        print(f"Removed retired demo account {full_name} ({enrollment}).")
 
 
 def _seed_books(conn: Connection, now_iso: str) -> None:
@@ -231,6 +279,9 @@ def seed_database(conn: Connection, force_reset: bool = False) -> None:
         is_empty = cursor.fetchone()[0] == 0
         if is_empty:
             _seed_library(conn, current_librarian_hash)
+        else:
+            _add_missing_seeded_students(conn)
+            _remove_retired_demo_accounts(conn)
 
         # Sample requests reference seeded users and books, so they must come after them.
         # They are also added to a database initialized before requests existed.

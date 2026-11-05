@@ -12,6 +12,12 @@ USERS = [
     ("Sai Kartikeya", "CSBS2022003", "saikartikeya@bookbase.in", "member123", "member", 4, 0.0),
     ("Biba", "CSBS2022004", "biba@bookbase.in", "member123", "member", 4, 0.0),
     ("Jaidanya", "CSBS2022005", "jaidanya@bookbase.in", "member123", "member", 4, 0.0),
+    ("Shashini", "CSBS2022006", "shashini@bookbase.in", "member123", "member", 4, 0.0),
+]
+
+# Demo accounts taken out after databases already held them: (full_name, enrollment_no, email)
+RETIRED_DEMO_ACCOUNTS = [
+    ("Kavya Sharma", "CSBS2022099", "kavya@bookbase.in"),
 ]
 
 # (user_id, book_id, title, author, category, notes, status)

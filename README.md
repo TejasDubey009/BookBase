@@ -305,6 +305,7 @@ The student passwords below are public demo credentials, on any database seeded 
 | **Sai Kartikeya** | Member | `saikartikeya@bookbase.in` | `member123` | Clean account ready to borrow / reserve |
 | **Biba** | Member | `biba@bookbase.in` | `member123` | Clean account ready to borrow / reserve |
 | **Jaidanya** | Member | `jaidanya@bookbase.in` | `member123` | Clean account ready to borrow / reserve |
+| **Shashini** | Member | `shashini@bookbase.in` | `member123` | Clean account ready to borrow / reserve |
 
 ---
 

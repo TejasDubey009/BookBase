@@ -141,7 +141,7 @@ def test_new_accounts_and_seeded_accounts_use_the_current_hash(client, db):
         "full_name": "Riya", "enrollment_no": "CSBS2023019", "email": "riya@example.com", "password": "riya-password"
     })
     stored = [row[0] for row in db.execute("SELECT password_hash FROM users")]
-    assert len(stored) == 7
+    assert len(stored) == 8
     assert not any(needs_rehash(value) for value in stored)
 
 
@@ -195,7 +195,7 @@ def test_demo_users_lists_only_seeded_accounts_and_no_private_fields(client, mon
     accounts = client.get(f"{API}/auth/demo-users").json()
 
     assert [a["enrollment_no"] for a in accounts] == [
-        "CSBS2022001", "CSBS2022002", "CSBS2022003", "CSBS2022004", "CSBS2022005"
+        "CSBS2022001", "CSBS2022002", "CSBS2022003", "CSBS2022004", "CSBS2022005", "CSBS2022006"
     ]
     assert {a["role"] for a in accounts} == {"member"}
     assert set(accounts[0]) == {"enrollment_no", "full_name", "role", "sample_password"}
