@@ -20,14 +20,14 @@ AKASH_USER_ID = 3
 def _wipe_all_tables(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
     cursor.execute("DELETE FROM db_audit_logs;")
+    cursor.execute("DELETE FROM book_requests;")
     cursor.execute("DELETE FROM waitlist_reservations;")
     cursor.execute("DELETE FROM circulation_loans;")
     cursor.execute("DELETE FROM book_copies;")
     cursor.execute("DELETE FROM books;")
     cursor.execute("DELETE FROM users;")
     # Reset AUTOINCREMENT sequences
-    cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('users', 'books', 'book_copies', 'circulation_loans', 'waitlist_reservations', 'db_audit_logs');")
-    conn.commit()
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('users', 'books', 'book_copies', 'circulation_loans', 'waitlist_reservations', 'book_requests', 'db_audit_logs');")
 
 
 def _seed_sample_requests_if_empty(conn: sqlite3.Connection) -> None:
@@ -43,7 +43,6 @@ def _seed_sample_requests_if_empty(conn: sqlite3.Connection) -> None:
         """,
         [(*request, now_iso, now_iso) for request in SAMPLE_REQUESTS]
     )
-    conn.commit()
 
 
 def _seed_users(conn: sqlite3.Connection, now_iso: str) -> None:
@@ -55,7 +54,6 @@ def _seed_users(conn: sqlite3.Connection, now_iso: str) -> None:
         [(name, enrollment, email, hash_password(password), role, quota, fines, now_iso)
          for name, enrollment, email, password, role, quota, fines in USERS]
     )
-    conn.commit()
 
 
 def _seed_books(conn: sqlite3.Connection, now_iso: str) -> None:
@@ -66,7 +64,6 @@ def _seed_books(conn: sqlite3.Connection, now_iso: str) -> None:
         """,
         [(*book, now_iso) for book in BOOKS]
     )
-    conn.commit()
 
 
 def _seed_copies(conn: sqlite3.Connection, now_iso: str) -> None:
@@ -90,7 +87,6 @@ def _seed_copies(conn: sqlite3.Connection, now_iso: str) -> None:
         """,
         [(*copy, now_iso) for copy in copies]
     )
-    conn.commit()
 
 
 def _insert_seed_loan(conn: sqlite3.Connection, book_id: int, user_id: int, issue_date: str, due_date: str) -> Tuple[int, int]:
@@ -120,7 +116,6 @@ def _seed_circulation(conn: sqlite3.Connection, now: datetime.datetime) -> None:
         issue_date=(now - datetime.timedelta(days=3)).isoformat(),
         due_date=(now + datetime.timedelta(days=11)).isoformat(),
     )
-    conn.commit()
 
     cursor = conn.cursor()
     cursor.execute(
@@ -131,7 +126,6 @@ def _seed_circulation(conn: sqlite3.Connection, now: datetime.datetime) -> None:
         (CLRS_BOOK_ID, AKASH_USER_ID, (now - datetime.timedelta(days=1)).isoformat())
     )
     reservation_id = cursor.lastrowid
-    conn.commit()
 
     log_audit(
         conn,
@@ -151,7 +145,15 @@ def _seed_circulation(conn: sqlite3.Connection, now: datetime.datetime) -> None:
         f"Patron Akash (user_id={AKASH_USER_ID}) joined reservation queue for book_id={CLRS_BOOK_ID}",
         f"user_id: {AKASH_USER_ID}, book_id: {CLRS_BOOK_ID}, reservation_id: {reservation_id}, queue_position: 1"
     )
-    conn.commit()
+
+
+def _seed_library(conn: sqlite3.Connection) -> None:
+    now = utc_now()
+    now_iso = now.isoformat()
+    _seed_users(conn, now_iso)
+    _seed_books(conn, now_iso)
+    _seed_copies(conn, now_iso)
+    _seed_circulation(conn, now)
 
 
 def seed_database(conn: sqlite3.Connection, force_reset: bool = False) -> None:
@@ -162,21 +164,20 @@ def seed_database(conn: sqlite3.Connection, force_reset: bool = False) -> None:
     """
     init_db_schema(conn)
 
-    if force_reset:
-        _wipe_all_tables(conn)
+    # One transaction: if anything fails, a reset leaves the existing data untouched
+    with conn:
+        if force_reset:
+            _wipe_all_tables(conn)
 
-    # Book requests get sample data even if the database was initialized earlier
-    _seed_sample_requests_if_empty(conn)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users;")
+        is_empty = cursor.fetchone()[0] == 0
+        if is_empty:
+            _seed_library(conn)
 
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users;")
-    if cursor.fetchone()[0] > 0 and not force_reset:
-        return
+        # Sample requests reference seeded users and books, so they must come after them.
+        # They are also added to a database initialized before requests existed.
+        _seed_sample_requests_if_empty(conn)
 
-    now = utc_now()
-    now_iso = now.isoformat()
-    _seed_users(conn, now_iso)
-    _seed_books(conn, now_iso)
-    _seed_copies(conn, now_iso)
-    _seed_circulation(conn, now)
-    print("Database successfully seeded with 5-Year B.Tech CSBS curriculum collection!")
+    if is_empty:
+        print("Database successfully seeded with 5-Year B.Tech CSBS curriculum collection!")
